@@ -1,0 +1,12 @@
+{
+  "thresholds": {
+    "conforme_max": 2.0,
+    "a_controler_max": 5.0,
+    "abnormal_rate": 20.0
+  },
+  "production_lines": ["LINE-01", "LINE-02", "LINE-03"],
+  "defect_types": ["SOUDURE_FROIDE", "COMPOSANT_ABSENT", "POLARITE_INVERSEE", "DEFAUT_VISUEL", "TEST_ELECTRIQUE"],
+  "frequent_defects_mode": "total_defects",
+  "max_comment_length": 250,
+  "report_top_defects": 5
+}
