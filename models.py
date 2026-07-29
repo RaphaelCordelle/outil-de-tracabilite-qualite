@@ -4,10 +4,12 @@ Les modèles ne contiennent aucune logique de stockage. Ils décrivent uniquemen
 les données échangées entre l'interface, le service métier et les rapports.
 """
 
+from __future__ import annotations
+
 from dataclasses import asdict, dataclass
 
 
-@dataclass(slots=True)
+@dataclass
 class Lot:
     """Un lot fictif suivi par l'outil."""
 
@@ -23,7 +25,7 @@ class Lot:
         return asdict(self)
 
 
-@dataclass(slots=True)
+@dataclass
 class ControleQualite:
     """Un contrôle qualité rattaché à un lot."""
 
@@ -41,7 +43,7 @@ class ControleQualite:
         return asdict(self)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class LotDetails:
     """Vue consolidée d'un lot et de ses contrôles."""
 
@@ -52,7 +54,7 @@ class LotDetails:
     taux_defaut_pondere: float
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class QualitySummary:
     """Indicateurs globaux calculés à la demande."""
 

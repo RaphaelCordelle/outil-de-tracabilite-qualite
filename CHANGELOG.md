@@ -1,5 +1,11 @@
 # Historique des versions
 
+## 1.1.1 — 2026-07-29
+
+- compatibilité étendue à Python 3.8 et 3.9, notamment EduPython ;
+- retrait de l'option `dataclass(slots=True)` introduite seulement en Python 3.10 ;
+- annotations différées pour conserver les types modernes sans erreur au démarrage.
+
 ## 1.1.0 — 2026-07-21
 
 - ajout de la consultation consolidée des lots et contrôles ;

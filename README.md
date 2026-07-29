@@ -31,7 +31,7 @@ Quality Traceability Tool est un MVP Python de suivi qualité local. Il relie de
 
 ## Installation
 
-Prérequis : Python 3.10 ou plus récent. Aucune dépendance externe.
+Prérequis : Python 3.8 ou plus récent, y compris l'interpréteur d'EduPython. Aucune dépendance externe.
 
 ```powershell
 cd C:\Dev\quality-traceability-tool
@@ -84,10 +84,10 @@ Le chemin le plus rapide est `py -3 main.py demo`. Pour une démonstration inter
 
 ## Tests et qualité
 
-La suite contient 23 tests : exigences `T-001` à `T-016`, erreurs de stockage, archivage, audit, génération d’identifiants et test sur 1 000 lots. Voir le [plan de validation](docs/test-plan.md), la [matrice de traçabilité](docs/traceability-matrix.md) et le [procès-verbal de vérification](docs/verification.md).
+La suite contient 24 tests : exigences `T-001` à `T-016`, compatibilité Python 3.8, erreurs de stockage, archivage, audit, génération d’identifiants et test sur 1 000 lots. Voir le [plan de validation](docs/test-plan.md), la [matrice de traçabilité](docs/traceability-matrix.md) et le [procès-verbal de vérification](docs/verification.md).
 
 ## Limites assumées
 
 Le stockage CSV est destiné à une démonstration locale mono-utilisateur. Il ne fournit ni concurrence d’écriture, ni authentification, ni synchronisation réseau. Il n’y a volontairement ni base de données, ni API web, ni cloud, ni Docker, conformément au périmètre du MVP.
 
-Version actuelle : **1.1.0** — voir [CHANGELOG.md](CHANGELOG.md).
+Version actuelle : **1.1.1** — voir [CHANGELOG.md](CHANGELOG.md).

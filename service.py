@@ -4,6 +4,8 @@ Cette couche rassemble les règles de transaction : validation avant écriture,
 mise à jour des index, consolidation des statuts et journalisation métier.
 """
 
+from __future__ import annotations
+
 from collections import Counter, defaultdict
 from dataclasses import replace
 from datetime import date

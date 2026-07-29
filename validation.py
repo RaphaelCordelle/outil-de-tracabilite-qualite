@@ -1,5 +1,7 @@
 """Validation des saisies, de la configuration et des incohérences."""
 
+from __future__ import annotations
+
 from datetime import date
 import re
 

@@ -4,6 +4,8 @@ Ce module ne calcule aucune règle qualité : il collecte les saisies, appelle l
 service puis présente le résultat. Cette séparation facilite les tests.
 """
 
+from __future__ import annotations
+
 from datetime import date
 from pathlib import Path
 

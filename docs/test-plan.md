@@ -38,6 +38,7 @@ py -3 -m compileall -q .
 - réactivation et recalcul du statut ;
 - journalisation des événements métier ;
 - identifiants proposés sans collision ;
+- syntaxe de tous les modules vérifiée avec la grammaire Python 3.8 ;
 - chargement et recherche sur 1 000 lots en moins de deux secondes.
 
 ## Recette manuelle

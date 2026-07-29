@@ -1,5 +1,7 @@
 """Point d'entrée du Quality Traceability Tool."""
 
+from __future__ import annotations
+
 import argparse
 import logging
 from logging.handlers import RotatingFileHandler
@@ -13,7 +15,7 @@ from storage import StorageError
 from validation import ValidationError
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 
 def configure_logging() -> None:

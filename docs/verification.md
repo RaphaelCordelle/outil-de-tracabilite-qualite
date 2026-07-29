@@ -1,4 +1,4 @@
-# Procès-verbal de vérification — version 1.1.0
+# Procès-verbal de vérification — version 1.1.1
 
 Date : 2026-07-21  
 Environnement : Python 3.12, Windows  
@@ -11,8 +11,9 @@ Nature : prototype personnel, données intégralement fictives
 | Compilation de tous les modules | Réussie |
 | Exigences T-001 à T-016 | 16/16 réussies |
 | Tests de robustesse complémentaires | 6/6 réussis |
+| Compatibilité syntaxique Python 3.8 | Réussie |
 | Test de performance à 1 000 lots | Réussi |
-| Total automatisé | **23/23 réussis** |
+| Total automatisé | **24/24 réussis** |
 | Commande `check` sur les exemples | Fonctionnelle, 1 alerte attendue |
 | Commande `demo` | Fonctionnelle |
 | Génération du rapport | Fonctionnelle |

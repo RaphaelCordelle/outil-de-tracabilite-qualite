@@ -5,6 +5,8 @@ Une sauvegarde ``.bak`` de la version précédente est conservée pour faciliter
 la récupération après une erreur de manipulation.
 """
 
+from __future__ import annotations
+
 import csv
 from dataclasses import asdict
 from datetime import datetime

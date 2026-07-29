@@ -1,5 +1,7 @@
 """Restauration explicite du jeu de démonstration fictif."""
 
+from __future__ import annotations
+
 import argparse
 from pathlib import Path
 

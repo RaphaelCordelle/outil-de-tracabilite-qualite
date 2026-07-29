@@ -1,5 +1,7 @@
 """Calculs et décisions qualité configurables."""
 
+from __future__ import annotations
+
 from collections.abc import Iterable
 
 STATUS_PRIORITY = {

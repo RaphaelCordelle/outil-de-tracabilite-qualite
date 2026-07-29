@@ -1,15 +1,15 @@
 [project]
 name = "quality-traceability-tool"
-version = "1.1.0"
+version = "1.1.1"
 description = "Prototype personnel de traçabilité qualité sur données fictives"
-requires-python = ">=3.10"
+requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [{name = "Raphaël Cordelle"}]
 keywords = ["python", "quality", "traceability", "csv", "validation"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py38"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
