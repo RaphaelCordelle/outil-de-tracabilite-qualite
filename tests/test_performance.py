@@ -8,7 +8,7 @@ import time
 import unittest
 
 from models import Lot
-from service import TraceabilityService
+from services import TraceabilityService
 
 from test_requirements import RULES
 

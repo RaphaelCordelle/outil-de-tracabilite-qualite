@@ -1,0 +1,3 @@
+id_incident,id_equipement,date_signalement,gravite,categorie,description,statut,action,date_resolution
+INC-20260724-001,EQ-CUT-001,2026-07-24T10:15:00+02:00,MINEURE,REGLAGE,Décalage ponctuel de longueur constaté sur une série,CLOTURE,Contrôle du réglage puis essai de coupe conforme,2026-07-24T11:05:00+02:00
+INC-20260729-001,EQ-ASP-002,2026-07-29T14:20:00+02:00,MAJEURE,ASPIRATION,Baisse du débit d'aspiration ressentie sur la partie droite,EN_COURS,Vérification du bac et du réseau planifiée,

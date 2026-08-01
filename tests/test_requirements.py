@@ -11,10 +11,9 @@ import unittest
 
 from console_ui import ConsoleApplication
 from models import ControleQualite, Lot
-from quality_rules import calculate_defect_rate, determine_result
-from report import generate_report
-from service import TraceabilityService
-from validation import ValidationError
+from quality_rules import ValidationError, calculate_defect_rate, determine_result
+from reporting import generate_report
+from services import TraceabilityService
 
 
 RULES = {
@@ -185,15 +184,14 @@ class RequirementTests(unittest.TestCase):
         )
         content = path.read_text(encoding="utf-8")
         for heading in (
-            "Synthèse exécutive",
-            "Indicateurs globaux",
-            "Anomalies et alertes",
-            "Lots nécessitant une attention",
-            "Défauts fréquents",
-            "Conclusion et limites",
+            "Situation générale",
+            "Écarts détectés",
+            "Lots à examiner",
+            "Défauts les plus fréquents",
+            "Équipements",
         ):
             self.assertIn(heading, content)
-        self.assertIn("données et procédures sont fictives", content)
+        self.assertIn("Données fictives utilisées", content)
 
     def test_t014_export_persistence_json_and_manifest(self) -> None:
         lot = self.service.create_lot(self.lot())

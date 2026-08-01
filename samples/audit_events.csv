@@ -1,2 +1,2 @@
-horodatage,evenement,type_entite,id_entite,details
-2026-07-01T09:00:00+02:00,DEMO_CHARGEE,SYSTEME,DEMO,Jeu de démonstration fictif initialisé
+horodatage,evenement,type_entite,id_entite,details,profil
+2026-07-01T09:00:00+02:00,DONNEES_CHARGEES,SYSTEME,INITIALISATION,Données initiales chargées,SYSTEME

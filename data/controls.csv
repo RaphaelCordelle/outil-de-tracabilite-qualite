@@ -1,4 +1,4 @@
-id_controle,id_lot,date_controle,quantite_controlee,nombre_defauts,type_defaut,taux_defaut,resultat,commentaire
-QC-20260701-001,LOT-20260701-001,2026-07-01,100,1,DEFAUT_VISUEL,1.0,CONFORME,Contrôle fictif
-QC-20260702-002,LOT-20260702-002,2026-07-02,100,4,SOUDURE_FROIDE,4.0,A_CONTROLER,Contrôle fictif
-QC-20260703-003,LOT-20260703-003,2026-07-03,50,4,TEST_ELECTRIQUE,8.0,REJETE,Contrôle fictif
+id_controle,id_lot,date_controle,quantite_controlee,nombre_defauts,type_defaut,taux_defaut,resultat,commentaire,etat_controle
+QC-20260701-001,LOT-20260701-001,2026-07-01,100,1,DEFAUT_VISUEL,1.0,CONFORME,Inspection visuelle de début de série,VALIDE
+QC-20260702-002,LOT-20260702-002,2026-07-02,100,4,SOUDURE_FROIDE,4.0,A_CONTROLER,Reprise de contrôle demandée,VALIDE
+QC-20260703-003,LOT-20260703-003,2026-07-03,50,4,TEST_ELECTRIQUE,8.0,REJETE,Écart confirmé sur test fonctionnel,VALIDE

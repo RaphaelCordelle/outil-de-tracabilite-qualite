@@ -1,8 +1,4 @@
-"""Interface console interactive.
-
-Ce module ne calcule aucune règle qualité : il collecte les saisies, appelle le
-service puis présente le résultat. Cette séparation facilite les tests.
-"""
+"""Interface console secondaire, utile sans environnement graphique."""
 
 from __future__ import annotations
 
@@ -10,11 +6,10 @@ from datetime import date
 from pathlib import Path
 
 from models import ControleQualite, Lot, LotDetails, QualitySummary
-from report import generate_report
-from service import TraceabilityService
+from quality_rules import ValidationError
+from reporting import generate_report
+from services import TraceabilityService
 from storage import StorageError
-from validation import ValidationError
-
 
 def ask(prompt: str, default: str = "") -> str:
     suffix = f" [{default}]" if default else ""
@@ -39,10 +34,7 @@ def show_lots(lots: list[Lot]) -> None:
     if not lots:
         print("Aucun lot trouvé.")
         return
-    print(
-        f"{'ID lot':<20} {'Produit':<20} {'Ligne':<10} "
-        f"{'Quantité':>9}  {'Statut':<14}"
-    )
+    print(f"{'ID lot':<20} {'Produit':<20} {'Ligne':<10} {'Quantité':>9}  {'Statut':<14}")
     print("-" * 89)
     for lot in lots:
         print(
@@ -57,15 +49,15 @@ def show_controls(controls: list[ControleQualite]) -> None:
         return
     print(
         f"{'ID contrôle':<20} {'ID lot':<20} {'Date':<10} "
-        f"{'Qté':>6} {'Défauts':>8} {'Taux':>8}  Résultat"
+        f"{'Qté':>6} {'Défauts':>8} {'Taux':>8}  {'Résultat':<14} État"
     )
-    print("-" * 103)
+    print("-" * 120)
     for control in controls:
         print(
             f"{control.id_controle:<20} {control.id_lot:<20} "
             f"{control.date_controle:<10} {control.quantite_controlee:>6} "
             f"{control.nombre_defauts:>8} {control.taux_defaut:>7.2f}%  "
-            f"{control.resultat}"
+            f"{control.resultat:<14} {control.etat_controle}"
         )
 
 
@@ -98,7 +90,7 @@ def show_summary(summary: QualitySummary) -> None:
 
 
 class ConsoleApplication:
-    """Menu interactif stable qui convertit les erreurs en messages lisibles."""
+    """Menu utilisable lorsque l'interface graphique n'est pas disponible."""
 
     MENU = """
 === Quality Traceability Tool ===
@@ -215,13 +207,26 @@ Prototype personnel — données intégralement fictives
 
     def generate_report(self) -> None:
         path = generate_report(
-            self.root, self.service.lots, self.service.controls, self.service.rules
+            self.root,
+            self.service.lots,
+            self.service.controls,
+            self.service.rules,
+            self.service.equipment,
+            self.service.equipment_issues,
+            self.service.equipment_usage,
+            self.service.tracked_anomalies(),
         )
         print(f"Rapport créé : {path}")
 
     def export(self) -> None:
         path = self.service.repository.export(
-            self.service.lots, self.service.controls, self.service.summary()
+            self.service.lots,
+            self.service.controls,
+            self.service.summary(),
+            self.service.equipment,
+            self.service.equipment_issues,
+            self.service.equipment_usage,
+            self.service.tracked_anomalies(),
         )
         print(f"Export créé avec manifeste SHA-256 : {path}")
 

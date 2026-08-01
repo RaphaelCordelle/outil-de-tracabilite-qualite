@@ -1,63 +1,59 @@
-# Rapport qualité — Quality Traceability Tool
+# Rapport qualité
 
-**Généré le :** 2026-07-21 à 23:02:25 UTC+0200
+Date : 30/07/2026 à 14:00
 
-> Prototype personnel inspiré d’un environnement de production électronique. Toutes les données et procédures sont fictives.
+_Note : données fictives utilisées uniquement pour présenter le projet._
 
-## Synthèse exécutive
-
-Le jeu analysé contient **4 lots** et **3 contrôles**. La couverture de contrôle atteint **75.0 %** et le taux de défaut pondéré est de **3.60 %**.
-
-## Indicateurs globaux
+## Situation générale
 
 | Indicateur | Valeur |
 |---|---|
-| Total des lots | 4 |
+| Lots enregistrés | 4 |
 | Lots conformes | 1 |
 | Lots à contrôler | 1 |
 | Lots rejetés | 1 |
 | Lots sans contrôle | 1 |
-| Lots archivés | 0 |
-| Contrôles enregistrés | 3 |
-| Quantité totale contrôlée | 250 |
-| Défauts comptabilisés | 9 |
-| Couverture des lots actifs | 75.0 % |
-| Taux de défaut moyen pondéré | 3.60 % |
+| Contrôles validés | 3 |
+| Quantité contrôlée | 250 |
+| Défauts relevés | 9 |
+| Couverture des lots actifs | 75,0 % |
+| Taux de défaut pondéré | 3,60 % |
 
-## Anomalies et alertes
+## Écarts détectés
 
-- Lot LOT-20260704-004 sans contrôle qualité.
+- Le lot `LOT-20260704-004` ne possède pas de contrôle validé.
 
-## Lots nécessitant une attention
+### Suivi des anomalies
+
+| État | Nombre |
+|---|---|
+| Nouvelles | 1 |
+| Acquittées | 0 |
+| En cours | 0 |
+| Ignorées avec justification | 0 |
+| Résolues | 0 |
+
+## Lots à examiner
 
 | Lot | Produit | Ligne | Quantité | Statut |
 |---|---|---|---|---|
-| LOT-20260702-002 | MODULE_IO_B2 | LINE-02 | 300 | A_CONTROLER |
-| LOT-20260703-003 | SENSOR_NODE_C1 | LINE-03 | 200 | REJETE |
+| LOT-20260702-002 | MODULE_IO_B2 | LINE-02 | 300 | À contrôler |
+| LOT-20260703-003 | SENSOR_NODE_C1 | LINE-03 | 200 | Rejeté |
 
-## Défauts fréquents
+## Seuils appliqués
 
-| Type de défaut | défaut(s) |
+| Décision | Règle |
 |---|---|
-| SOUDURE_FROIDE | 4 |
-| TEST_ELECTRIQUE | 4 |
-| DEFAUT_VISUEL | 1 |
+| Conforme | Taux ≤ 2,00 % |
+| À contrôler | 2,00 % < taux ≤ 5,00 % |
+| Rejeté | Taux > 5,00 % |
+| Alerte | Taux > 20,00 % |
 
-## Indicateurs par ligne fictive
+## Équipements
 
-| Ligne | Contrôles | Quantité contrôlée | Taux pondéré |
-|---|---|---|---|
-| LINE-01 | 1 | 100 | 1.00 % |
-| LINE-02 | 1 | 100 | 4.00 % |
-| LINE-03 | 1 | 50 | 8.00 % |
-
-## Règles actives
-
-- Conforme : taux ≤ 2.00 %
-- À contrôler : 2.00 % < taux ≤ 5.00 %
-- Rejeté : taux > 5.00 %
-- Alerte taux anormal : taux > 20.00 %
-
-## Conclusion et limites
-
-Cette synthèse illustre la consolidation de règles configurables sur un échantillon fictif. Elle ne constitue ni une décision industrielle réelle, ni une procédure de libération produit. Le stockage CSV est destiné à un prototype local mono-utilisateur.
+| Indicateur | Valeur |
+|---|---|
+| Équipements suivis | 6 |
+| Disponibles | 5 |
+| Sous surveillance | 1 |
+| Incidents ouverts | 1 |
