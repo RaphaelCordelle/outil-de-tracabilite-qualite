@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox, ttk
-from typing import Any, Callable, Dict, NamedTuple, Tuple, Type
 
 from access import MODE_DESCRIPTIONS, MODE_LABELS, has_permission
 from gui_theme import Colors, configure_theme
@@ -20,19 +19,11 @@ from gui_views import (
     SettingsView,
 )
 from gui_widgets import Page
+from quality_rules import ValidationError
+from services import TraceabilityService
+from storage import StorageError
 
-
-class GuiDependencies(NamedTuple):
-    """Types et fonctions fournis au démarrage de l'interface."""
-
-    lot_type: Type[Any]
-    control_type: Type[Any]
-    equipment_type: Type[Any]
-    issue_type: Type[Any]
-    usage_type: Type[Any]
-    service_type: Type[Any]
-    report_generator: Callable[..., Path]
-    error_types: Tuple[Type[BaseException], ...]
+USER_ERRORS = (StorageError, ValidationError, OSError, ValueError)
 
 
 class QualityTraceabilityApp(tk.Tk):
@@ -61,13 +52,10 @@ class QualityTraceabilityApp(tk.Tk):
         "MANAGER": {item[0] for item in NAVIGATION},
     }
 
-    def __init__(
-        self, service: Any, root_path: Path, dependencies: GuiDependencies
-    ) -> None:
+    def __init__(self, service: TraceabilityService, root_path: Path) -> None:
         super().__init__()
         self.service = service
         self.root_path = Path(root_path)
-        self.dependencies = dependencies
         self.title("Quality Traceability Tool")
         self.geometry("1280x780")
         self.minsize(1060, 660)
@@ -108,7 +96,7 @@ class QualityTraceabilityApp(tk.Tk):
         )
         self.role_selector.pack(side="right")
         self.role_selector.bind("<<ComboboxSelected>>", self._change_role)
-        ttk.Label(role_bar, text="Rôle :").pack(side="right", padx=(0, 8))
+        ttk.Label(role_bar, text="Vue :").pack(side="right", padx=(0, 8))
 
         self.page_host = ttk.Frame(self.main_area)
         self.page_host.pack(fill="both", expand=True)
@@ -125,8 +113,8 @@ class QualityTraceabilityApp(tk.Tk):
             font=("Segoe UI", 9),
         ).pack(fill="x", side="bottom")
 
-        self.nav_buttons: Dict[str, ttk.Button] = {}
-        self.pages: Dict[str, Page] = {}
+        self.nav_buttons: dict[str, ttk.Button] = {}
+        self.pages: dict[str, Page] = {}
         self.current_page = ""
         self._build_sidebar()
         self._build_pages()
@@ -198,12 +186,24 @@ class QualityTraceabilityApp(tk.Tk):
         ).pack(anchor="w")
         tk.Label(
             footer,
-            text="Application locale\nDonnées fictives",
+            text="Prototype personnel",
             background=Colors.SIDEBAR,
             foreground="#72859E",
             justify="left",
             font=("Segoe UI", 8),
         ).pack(anchor="w", pady=(3, 0))
+        tk.Button(
+            footer,
+            text="À propos",
+            command=self._show_about,
+            background=Colors.SIDEBAR,
+            foreground="#9EB0C7",
+            activebackground=Colors.SIDEBAR,
+            activeforeground="#FFFFFF",
+            borderwidth=0,
+            cursor="hand2",
+            font=("Segoe UI", 8, "underline"),
+        ).pack(anchor="w", pady=(4, 0))
 
     def _build_navigation(self) -> None:
         for key, label, _view in self._visible_navigation():
@@ -220,9 +220,18 @@ class QualityTraceabilityApp(tk.Tk):
             button.pack(fill="x", padx=10, pady=2)
             self.nav_buttons[key] = button
 
+    def _show_about(self) -> None:
+        messagebox.showinfo(
+            "À propos",
+            "Quality Traceability Tool\n\n"
+            "Prototype personnel inspiré d'un environnement de production électronique.\n"
+            "Les données, équipements et procédures présentés sont fictifs.",
+            parent=self,
+        )
+
     def _update_role_label(self) -> None:
         if hasattr(self, "role_text"):
-            self.role_text.set(f"RÔLE : {MODE_LABELS.get(self.mode, self.mode).upper()}")
+            self.role_text.set(f"VUE : {MODE_LABELS.get(self.mode, self.mode).upper()}")
         if hasattr(self, "role_value"):
             self.role_value.set(MODE_LABELS.get(self.mode, self.mode))
             self.role_summary.set(MODE_DESCRIPTIONS.get(self.mode, ""))
@@ -233,11 +242,9 @@ class QualityTraceabilityApp(tk.Tk):
         )
         if selected == self.mode:
             return
-        rules = dict(self.service.rules)
-        rules["interface_mode"] = selected
         try:
-            self.service.update_rules(rules)
-        except self.dependencies.error_types as exc:
+            self.service.update_interface_mode(selected)
+        except USER_ERRORS as exc:
             self._update_role_label()
             messagebox.showerror("Changement impossible", str(exc), parent=self)
             return
@@ -276,12 +283,12 @@ class QualityTraceabilityApp(tk.Tk):
         self._update_status()
 
     def refresh_all(self) -> None:
-        for page in self.pages.values():
-            page.refresh()
+        if self.current_page:
+            self.pages[self.current_page].refresh()
         self._update_status()
 
     def reload_service(self) -> None:
-        self.service = self.dependencies.service_type(self.root_path)
+        self.service = TraceabilityService(self.root_path)
         self.refresh_all()
 
     def _update_status(self) -> None:
@@ -291,12 +298,11 @@ class QualityTraceabilityApp(tk.Tk):
             f"{MODE_LABELS.get(self.mode, self.mode)} • "
             f"{summary.total_lots} lot(s) • {summary.total_controles} contrôle(s) • "
             f"{len(self.service.open_equipment_issues())} incident(s) équipement • "
-            f"{anomalies} alerte(s) • Taux pondéré {summary.taux_defaut_moyen:.2f} %"
+            f"{anomalies} alerte(s) • Taux pondéré "
+            f"{summary.taux_defaut_moyen:.2f} %".replace(".", ",")
         )
 
 
-def run_gui(
-    service: Any, root_path: Path, dependencies: GuiDependencies
-) -> None:
-    app = QualityTraceabilityApp(service, root_path, dependencies)
+def run_gui(service: TraceabilityService, root_path: Path) -> None:
+    app = QualityTraceabilityApp(service, root_path)
     app.mainloop()

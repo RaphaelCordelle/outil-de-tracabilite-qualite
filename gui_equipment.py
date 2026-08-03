@@ -11,7 +11,12 @@ from typing import Any, Callable, Optional
 
 from gui_dialogs import FormDialog
 from gui_theme import Colors
-from gui_widgets import DataTable, KpiCard, Page, Surface
+from gui_widgets import DataTable, KpiCard, Page, Surface, display_code
+from models import Equipement, IncidentEquipement
+from quality_rules import ISSUE_STATUS_TRANSITIONS, ValidationError
+from storage import StorageError
+
+USER_ERRORS = (StorageError, ValidationError, OSError, ValueError)
 
 
 GUIDE_OPTIONS = {
@@ -34,6 +39,14 @@ ISSUE_STATUS_LABELS = {
     "EN_COURS": "En cours",
     "RESOLU": "Résolu",
     "CLOTURE": "Clôturé",
+}
+ISSUE_FILTERS = {
+    "Incidents actifs": {"OUVERT", "EN_COURS"},
+    "Tous les incidents": None,
+    "Ouverts": {"OUVERT"},
+    "En cours": {"EN_COURS"},
+    "Résolus": {"RESOLU"},
+    "Clôturés": {"CLOTURE"},
 }
 
 
@@ -58,7 +71,7 @@ class EquipmentDialog(FormDialog):
         parent: tk.Misc,
         app: Any,
         on_success: Callable[[], None],
-        equipment: Optional[Any] = None,
+        equipment: Optional[Equipement] = None,
     ) -> None:
         self.app = app
         self.service = app.service
@@ -181,12 +194,12 @@ class EquipmentDialog(FormDialog):
                 )
             else:
                 self.service.create_equipment(
-                    self.app.dependencies.equipment_type(
+                    Equipement(
                         id_equipement=self.id_var.get().strip().upper(),
                         **values,
                     )
                 )
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             self._show_error(exc)
             return
         self._success()
@@ -258,7 +271,7 @@ class IssueDialog(FormDialog):
 
     def submit(self) -> None:
         try:
-            issue = self.app.dependencies.issue_type(
+            issue = IncidentEquipement(
                 id_incident=self.service.next_issue_id(),
                 id_equipement=self.equipment_var.get().strip(),
                 date_signalement=datetime.now()
@@ -269,7 +282,7 @@ class IssueDialog(FormDialog):
                 description=self.description.get("1.0", "end").strip(),
             )
             self.service.report_equipment_issue(issue)
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             self._show_error(exc)
             return
         self._success()
@@ -280,7 +293,7 @@ class IssueUpdateDialog(FormDialog):
         self,
         parent: tk.Misc,
         app: Any,
-        issue: Any,
+        issue: IncidentEquipement,
         on_success: Callable[[], None],
     ) -> None:
         self.app = app
@@ -293,7 +306,11 @@ class IssueUpdateDialog(FormDialog):
         ttk.Combobox(
             self.form,
             textvariable=self.status_var,
-            values=tuple(ISSUE_STATUS_LABELS.values()),
+            values=tuple(
+                ISSUE_STATUS_LABELS[status]
+                for status in ISSUE_STATUS_LABELS
+                if status in ISSUE_STATUS_TRANSITIONS[issue.statut]
+            ),
             state="readonly",
         ).grid(row=0, column=1, sticky="ew", pady=7)
         _label(self.form, "Action réalisée / suivi", 1)
@@ -314,7 +331,7 @@ class IssueUpdateDialog(FormDialog):
                 ),
                 action=self.action.get("1.0", "end").strip(),
             )
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             self._show_error(exc)
             return
         self._success()
@@ -355,7 +372,7 @@ class UsageDialog(FormDialog):
                 self.user_var.get().strip(),
                 self.reason.get("1.0", "end").strip(),
             )
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             self._show_error(exc)
             return
         self._success()
@@ -475,6 +492,15 @@ class EquipmentView(Page):
                 ]
             )
         available_actions.append(("Consulter le guide", self._open_guide, "TButton"))
+        available_actions.append(
+            (
+                "Traiter un incident"
+                if self.app.can("manage_incidents")
+                else "Voir les incidents",
+                self._open_equipment_issues,
+                "TButton",
+            )
+        )
         if self.app.can("report_issue"):
             available_actions.append(
                 ("Signaler un problème", self._new_issue, "Danger.TButton")
@@ -486,27 +512,33 @@ class EquipmentView(Page):
 
     def _build_issue_tab(self) -> None:
         tab = ttk.Frame(self.tabs, padding=12)
+        self.issue_tab = tab
         self.tabs.add(tab, text="Incidents")
-        self.issue_table = DataTable(
-            tab,
-            [
-                ("id", "Incident", 150, "w"),
-                ("equipment", "Équipement", 140, "w"),
-                ("date", "Signalé le", 180, "w"),
-                ("severity", "Gravité", 100, "center"),
-                ("category", "Catégorie", 130, "center"),
-                ("status", "Statut", 110, "center"),
-                ("description", "Description", 360, "w"),
-                ("action", "Action / suivi", 320, "w"),
-            ],
+
+        filters = Surface(tab, padding=(12, 8))
+        filters.pack(fill="x", pady=(0, 10))
+        ttk.Label(filters, text="Afficher", style="Surface.TLabel").pack(
+            side="left", padx=(0, 8)
         )
-        self.issue_table.pack(fill="both", expand=True)
-        if self.app.can("manage_incidents"):
-            self.issue_table.tree.bind(
-                "<Double-1>", lambda _event: self._update_issue()
-            )
+        self.issue_filter = tk.StringVar(value="Incidents actifs")
+        filter_box = ttk.Combobox(
+            filters,
+            textvariable=self.issue_filter,
+            values=tuple(ISSUE_FILTERS),
+            state="readonly",
+            width=20,
+        )
+        filter_box.pack(side="left")
+        filter_box.bind(
+            "<<ComboboxSelected>>", lambda _event: self._refresh_issues()
+        )
+        self.issue_count = tk.StringVar()
+        ttk.Label(
+            filters, textvariable=self.issue_count, style="Subtitle.TLabel"
+        ).pack(side="right")
+
         actions = ttk.Frame(tab)
-        actions.pack(fill="x", pady=(10, 0))
+        actions.pack(side="bottom", fill="x", pady=(10, 0))
         if self.app.can("manage_incidents"):
             ttk.Button(
                 actions,
@@ -514,10 +546,34 @@ class EquipmentView(Page):
                 command=self._update_issue,
                 style="Primary.TButton",
             ).pack(side="left")
+        else:
+            ttk.Label(
+                actions,
+                text="Le traitement est disponible dans les vues Qualité et Manager.",
+                style="Subtitle.TLabel",
+            ).pack(side="left")
         if self.app.can("report_issue"):
             ttk.Button(
                 actions, text="Nouveau signalement", command=self._new_issue
             ).pack(side="left", padx=8)
+
+        self.issue_table = DataTable(
+            tab,
+            [
+                ("id", "Incident", 145, "w"),
+                ("equipment", "Équipement", 230, "w"),
+                ("date", "Signalé le", 145, "w"),
+                ("severity", "Gravité", 90, "center"),
+                ("status", "Statut", 100, "center"),
+                ("description", "Description", 350, "w"),
+                ("action", "Action / suivi", 280, "w"),
+            ],
+        )
+        self.issue_table.pack(fill="both", expand=True)
+        if self.app.can("manage_incidents"):
+            self.issue_table.tree.bind(
+                "<Double-1>", lambda _event: self._update_issue()
+            )
 
     def _build_usage_tab(self) -> None:
         tab = ttk.Frame(self.tabs, padding=12)
@@ -593,6 +649,45 @@ class EquipmentView(Page):
         issue = self.app.service.require_equipment_issue(issue_id)
         IssueUpdateDialog(self, self.app, issue, self.app.refresh_all)
 
+    def _open_equipment_issues(self) -> None:
+        equipment_id = self._selected_equipment_id()
+        if not equipment_id:
+            return
+
+        issues = sorted(
+            self.app.service.equipment_issues_for(equipment_id),
+            key=lambda item: item.date_signalement,
+            reverse=True,
+        )
+        if not issues:
+            messagebox.showinfo(
+                "Aucun incident",
+                "Aucun incident n'est enregistré pour cet équipement.",
+                parent=self,
+            )
+            return
+
+        active_issues = [
+            issue for issue in issues if issue.statut in {"OUVERT", "EN_COURS"}
+        ]
+        selected_issue = active_issues[0] if active_issues else issues[0]
+        self.issue_filter.set(
+            "Incidents actifs" if active_issues else "Tous les incidents"
+        )
+        self._refresh_issues()
+        self.tabs.select(self.issue_tab)
+        self.issue_table.tree.selection_set(selected_issue.id_incident)
+        self.issue_table.tree.focus(selected_issue.id_incident)
+        self.issue_table.tree.see(selected_issue.id_incident)
+
+        if self.app.can("manage_incidents"):
+            IssueUpdateDialog(
+                self,
+                self.app,
+                selected_issue,
+                self.app.refresh_all,
+            )
+
     def _start_usage(self) -> None:
         equipment_id = self._selected_equipment_id()
         if equipment_id:
@@ -612,7 +707,7 @@ class EquipmentView(Page):
             return
         try:
             usage = self.app.service.end_equipment_usage(equipment_id)
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             messagebox.showerror("Opération impossible", str(exc), parent=self)
             return
         messagebox.showinfo(
@@ -644,7 +739,7 @@ class EquipmentView(Page):
                 import webbrowser
 
                 webbrowser.open(path.as_uri())
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             messagebox.showerror("Guide indisponible", str(exc), parent=self)
 
     def _show_selection(self) -> None:
@@ -690,9 +785,9 @@ class EquipmentView(Page):
                 (
                     item.id_equipement,
                     item.nom,
-                    item.categorie,
+                    display_code(item.categorie),
                     item.zone,
-                    item.criticite,
+                    display_code(item.criticite),
                     EQUIPMENT_STATUS_LABELS[item.statut],
                     "OUI" if item.guide_fichier else "—",
                 ),
@@ -700,6 +795,36 @@ class EquipmentView(Page):
                 tags=(item.statut,),
             )
         self._show_selection()
+
+    def _refresh_issues(self) -> None:
+        allowed_statuses = ISSUE_FILTERS[self.issue_filter.get()]
+        issues = [
+            issue
+            for issue in self.app.service.equipment_issues
+            if allowed_statuses is None or issue.statut in allowed_statuses
+        ]
+        issues.sort(key=lambda item: item.date_signalement, reverse=True)
+        equipment_names = {
+            item.id_equipement: item.nom for item in self.app.service.equipment
+        }
+
+        self.issue_table.clear()
+        for issue in issues:
+            equipment_name = equipment_names.get(issue.id_equipement, "")
+            self.issue_table.add(
+                (
+                    issue.id_incident,
+                    f"{equipment_name} ({issue.id_equipement})",
+                    _display_datetime(issue.date_signalement),
+                    display_code(issue.gravite),
+                    ISSUE_STATUS_LABELS[issue.statut],
+                    issue.description,
+                    issue.action or "—",
+                ),
+                item_id=issue.id_incident,
+                tags=(issue.statut,),
+            )
+        self.issue_count.set(f"{len(issues)} incident(s) affiché(s)")
 
     def refresh(self) -> None:
         statuses = Counter(item.statut for item in self.app.service.equipment)
@@ -710,27 +835,7 @@ class EquipmentView(Page):
         )
         self.cards["active"].set_value(statuses["EN_UTILISATION"])
         self._refresh_fleet()
-
-        self.issue_table.clear()
-        for issue in sorted(
-            self.app.service.equipment_issues,
-            key=lambda item: item.date_signalement,
-            reverse=True,
-        ):
-            self.issue_table.add(
-                (
-                    issue.id_incident,
-                    issue.id_equipement,
-                    _display_datetime(issue.date_signalement),
-                    issue.gravite,
-                    issue.categorie,
-                    ISSUE_STATUS_LABELS[issue.statut],
-                    issue.description,
-                    issue.action,
-                ),
-                item_id=issue.id_incident,
-                tags=(issue.statut,),
-            )
+        self._refresh_issues()
 
         self.usage_table.clear()
         for usage in sorted(

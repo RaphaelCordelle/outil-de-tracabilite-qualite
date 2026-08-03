@@ -119,7 +119,10 @@ class CsvRepository:
     def __init__(self, root: Path) -> None:
         self.root = Path(root)
         self.data_dir = self.root / "data"
+        self.reports_dir = self.root / "reports"
+        self.exports_dir = self.root / "exports"
         self.config_path = self.root / "config" / "quality_rules.json"
+        self.preferences_path = self.data_dir / "preferences.json"
         self.lots_path = self.data_dir / "lots.csv"
         self.controls_path = self.data_dir / "controls.csv"
         self.equipment_path = self.data_dir / "equipment.csv"
@@ -127,7 +130,14 @@ class CsvRepository:
         self.equipment_usage_path = self.data_dir / "equipment_usage.csv"
         self.anomaly_tracking_path = self.data_dir / "anomaly_tracking.csv"
         self.audit_path = self.data_dir / "audit_events.csv"
+        first_launch = not self.data_dir.exists()
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        if first_launch:
+            samples = self.root / "samples"
+            for source in samples.glob("*.csv"):
+                shutil.copy2(source, self.data_dir / source.name)
+        self.reports_dir.mkdir(parents=True, exist_ok=True)
+        self.exports_dir.mkdir(parents=True, exist_ok=True)
         self._ensure_csv(self.lots_path, LOT_FIELDS)
         self._ensure_csv(self.controls_path, CONTROL_FIELDS)
         self._ensure_csv(self.equipment_path, EQUIPMENT_FIELDS)
@@ -211,6 +221,24 @@ class CsvRepository:
             raise StorageError(
                 f"Écriture impossible dans {self.config_path.name} : {exc}."
             ) from exc
+
+    def load_interface_mode(self, default: str) -> str:
+        if not self.preferences_path.exists():
+            return default
+        try:
+            data = json.loads(self.preferences_path.read_text(encoding="utf-8"))
+            return str(data.get("interface_mode", default))
+        except (OSError, json.JSONDecodeError, AttributeError) as exc:
+            raise StorageError(f"Préférences illisibles : {exc}.") from exc
+
+    def save_interface_mode(self, mode: str) -> None:
+        try:
+            self.preferences_path.write_text(
+                json.dumps({"interface_mode": mode}, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            raise StorageError(f"Enregistrement des préférences impossible : {exc}.") from exc
 
     @staticmethod
     def _read_rows(path: Path, expected_fields: list[str]) -> list[dict[str, str]]:
@@ -440,7 +468,7 @@ class CsvRepository:
         """Crée un export horodaté et un manifeste SHA-256 de contrôle d'intégrité."""
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        destination = self.root / "exports" / f"export_{timestamp}"
+        destination = self.exports_dir / f"export_{timestamp}"
         destination.mkdir(parents=True, exist_ok=False)
         self._write_rows(
             destination / "lots_export.csv",

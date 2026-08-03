@@ -12,13 +12,6 @@ from pathlib import Path
 import sys
 
 from console_ui import ConsoleApplication, show_lots, show_summary
-from models import (
-    ControleQualite,
-    Equipement,
-    IncidentEquipement,
-    Lot,
-    UtilisationEquipement,
-)
 from quality_rules import ValidationError
 from reporting import generate_report
 from services import TraceabilityService
@@ -121,19 +114,9 @@ def execute(args: argparse.Namespace, service: TraceabilityService) -> int:
         try:
             import tkinter
 
-            from gui import GuiDependencies, run_gui
+            from gui import run_gui
 
-            dependencies = GuiDependencies(
-                lot_type=Lot,
-                control_type=ControleQualite,
-                equipment_type=Equipement,
-                issue_type=IncidentEquipement,
-                usage_type=UtilisationEquipement,
-                service_type=TraceabilityService,
-                report_generator=generate_report,
-                error_types=(StorageError, ValidationError, OSError, ValueError),
-            )
-            run_gui(service, ROOT, dependencies)
+            run_gui(service, ROOT)
         except ImportError as exc:
             print(
                 f"Interface graphique indisponible ({exc}). Ouverture de la console."

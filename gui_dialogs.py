@@ -8,7 +8,12 @@ from tkinter import messagebox, ttk
 from typing import Any, Callable, Optional
 
 from gui_theme import Colors, center_window
-from gui_widgets import DataTable, StatusLabel
+from gui_widgets import DataTable, StatusLabel, display_code
+from models import ControleQualite, Lot, SuiviAnomalie
+from quality_rules import ANOMALY_STATUS_TRANSITIONS, ValidationError
+from storage import StorageError
+
+USER_ERRORS = (StorageError, ValidationError, OSError, ValueError)
 
 
 CONTROL_STATE_LABELS = {
@@ -98,7 +103,7 @@ class LotDialog(FormDialog):
         parent: tk.Misc,
         app: Any,
         on_success: Callable[[], None],
-        lot: Optional[Any] = None,
+        lot: Optional[Lot] = None,
     ) -> None:
         self.app = app
         self.service = app.service
@@ -180,7 +185,7 @@ class LotDialog(FormDialog):
                 )
             else:
                 self.service.create_lot(
-                    self.app.dependencies.lot_type(
+                    Lot(
                         id_lot=self.id_var.get().strip().upper(),
                         date_creation=self.date_var.get().strip(),
                         produit=self.product_var.get().strip().upper(),
@@ -189,7 +194,7 @@ class LotDialog(FormDialog):
                         commentaire=comment,
                     )
                 )
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             self._show_error(exc)
             return
         self._success()
@@ -202,7 +207,7 @@ class ControlDialog(FormDialog):
         app: Any,
         on_success: Callable[[], None],
         lot_id: str = "",
-        control: Optional[Any] = None,
+        control: Optional[ControleQualite] = None,
     ) -> None:
         self.app = app
         self.service = app.service
@@ -327,7 +332,7 @@ class ControlDialog(FormDialog):
                     self.control.id_controle, **values
                 )
             else:
-                control = self.app.dependencies.control_type(
+                control = ControleQualite(
                     id_controle=self.id_var.get().strip().upper(),
                     id_lot=self.lot_var.get().strip().upper(),
                     taux_defaut=0.0,
@@ -335,7 +340,7 @@ class ControlDialog(FormDialog):
                     **values,
                 )
                 self.service.add_control(control)
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             self._show_error(exc)
             return
         messagebox.showinfo(
@@ -353,7 +358,7 @@ class AnomalyTrackingDialog(FormDialog):
         self,
         parent: tk.Misc,
         app: Any,
-        anomaly: Any,
+        anomaly: SuiviAnomalie,
         on_success: Callable[[], None],
     ) -> None:
         self.app = app
@@ -372,8 +377,8 @@ class AnomalyTrackingDialog(FormDialog):
         facts = [
             ("Identifiant", anomaly.id_anomalie),
             ("Élément concerné", f"{anomaly.entite_type} — {anomaly.entite_id}"),
-            ("Gravité", anomaly.gravite),
-            ("Type", anomaly.type_anomalie.replace("_", " ")),
+            ("Gravité", display_code(anomaly.gravite)),
+            ("Type", display_code(anomaly.type_anomalie)),
         ]
         for row, (caption, value) in enumerate(facts):
             _field_label(self.form, caption, row)
@@ -401,7 +406,11 @@ class AnomalyTrackingDialog(FormDialog):
         ttk.Combobox(
             self.form,
             textvariable=self.status_var,
-            values=tuple(ANOMALY_STATUS_LABELS.values()),
+            values=tuple(
+                ANOMALY_STATUS_LABELS[status]
+                for status in ANOMALY_STATUS_LABELS
+                if status in ANOMALY_STATUS_TRANSITIONS[anomaly.statut]
+            ),
             state="readonly",
         ).grid(row=5, column=1, sticky="ew", pady=7)
 
@@ -420,8 +429,7 @@ class AnomalyTrackingDialog(FormDialog):
         tk.Label(
             self.form,
             text=(
-                "Ignorée : la cause est acceptée avec une justification. "
-                "Résolue : la cause doit d'abord avoir disparu."
+                "Une anomalie est résolue automatiquement lorsque sa cause disparaît."
             ),
             background=Colors.INFO_BG,
             foreground=Colors.INFO,
@@ -442,7 +450,7 @@ class AnomalyTrackingDialog(FormDialog):
                 ),
                 commentaire=self.comment.get("1.0", "end").strip(),
             )
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             self._show_error(exc)
             return
         self._success()
@@ -535,7 +543,7 @@ class LotDetailsDialog(tk.Toplevel):
                     control.nombre_defauts,
                     f"{control.taux_defaut:.2f} %",
                     control.type_defaut,
-                    control.resultat,
+                    display_code(control.resultat),
                     CONTROL_STATE_LABELS[control.etat_controle],
                 ),
                 item_id=control.id_controle,
@@ -616,7 +624,7 @@ class LotDetailsDialog(tk.Toplevel):
                 self.service.restore_lot(lot.id_lot)
             else:
                 self.service.archive_lot(lot.id_lot)
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             messagebox.showerror("Opération impossible", str(exc), parent=self)
             return
         self._changed()

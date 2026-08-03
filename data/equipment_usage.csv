@@ -1,6 +1,0 @@
-id_utilisation,id_equipement,debut,fin,utilisateur,motif,duree_minutes
-USE-20260728-001,EQ-ROT-001,2026-07-28T08:10:00+02:00,2026-07-28T08:42:00+02:00,OP-01,Préparation bobine lot interne,32
-USE-20260728-002,EQ-CUT-001,2026-07-28T09:05:00+02:00,2026-07-28T10:20:00+02:00,OP-02,Coupe série format court,75
-USE-20260728-003,EQ-LOG-001,2026-07-28T11:15:00+02:00,2026-07-28T11:27:00+02:00,LOG-01,Transfert palette vers contrôle,12
-USE-20260729-001,EQ-ASP-001,2026-07-29T13:10:00+02:00,2026-07-29T15:40:00+02:00,OP-03,Assemblage et reprise composants,150
-USE-20260729-002,EQ-CUT-001,2026-07-29T15:05:00+02:00,2026-07-29T15:48:00+02:00,OP-02,Coupe série format long,43

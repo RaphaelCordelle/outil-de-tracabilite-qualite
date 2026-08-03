@@ -1,5 +1,0 @@
-id_lot,date_creation,produit,quantite_produite,ligne_production,statut,commentaire
-LOT-20260701-001,2026-07-01,PCB_CTRL_A1,500,LINE-01,CONFORME,"Réception complète, contrôle standard"
-LOT-20260702-002,2026-07-02,MODULE_IO_B2,300,LINE-02,A_CONTROLER,Surveillance renforcée suite aux résultats intermédiaires
-LOT-20260703-003,2026-07-03,SENSOR_NODE_C1,200,LINE-03,REJETE,Blocage qualité après contrôle électrique
-LOT-20260704-004,2026-07-04,POWER_BOARD_D1,450,LINE-01,SANS_CONTROLE,Contrôle planifié

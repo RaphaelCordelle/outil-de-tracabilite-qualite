@@ -24,13 +24,13 @@ n’utilise aucune dépendance externe.
 - produire un rapport Markdown et un export avec contrôle d’intégrité ;
 - conserver un journal des opérations importantes.
 
-Trois modes d'affichage sont disponibles dans **Configuration** :
+Trois vues sont disponibles depuis la barre supérieure :
 
 - **Employé** : saisie des lots et contrôles en attente, incidents et utilisations ;
 - **Inspecteur qualité** : validation des contrôles, anomalies et rapports ;
 - **Manager** : vue complète, configuration, exports et historique des actions.
 
-Le rôle se change directement en haut de la fenêtre. Ce choix adapte les pages
+La vue se change directement en haut de la fenêtre. Ce choix adapte les pages
 affichées, mais ne remplace pas un véritable système de comptes utilisateurs.
 
 Les seuils qualité, les lignes de production et les types de défaut sont
@@ -66,7 +66,7 @@ Pour présenter le projet en quelques minutes :
 1. ouvrir le tableau de bord et expliquer les indicateurs ;
 2. consulter un lot et les contrôles qui lui sont rattachés ;
 3. créer un lot, puis ajouter un contrôle ;
-4. ouvrir la page des anomalies et prendre une anomalie en charge ;
+4. double-cliquer sur une alerte puis prendre l'anomalie en charge ;
 5. signaler un incident sur un équipement ;
 6. générer un rapport depuis la page **Rapports et exports**.
 
@@ -103,16 +103,19 @@ fenêtre.
 py -3 -m unittest discover -s tests -v
 ```
 
-La suite comprend 47 tests. Elle couvre les règles qualité, la persistance,
+La suite comprend 52 tests. Elle couvre les règles qualité, la persistance,
 les anomalies, les équipements, les rapports, la compatibilité Python et une
-recherche sur 1 000 lots. Elle vérifie aussi les profils d'affichage et la
-présence permanente des boutons de validation dans les formulaires.
+recherche sur 1 000 lots. Elle vérifie aussi les vues, les transitions d'état,
+la création des dossiers de sortie et la mise en forme des rapports.
 
 ## Choix et limites
 
 Le CSV a été choisi pour que les données restent faciles à lire et à montrer.
 Les écritures utilisent un fichier temporaire et conservent une sauvegarde
 `.bak` de la version précédente.
+
+Au premier lancement, le jeu fourni dans `samples/` est copié dans `data/`.
+Les données de travail restent ainsi séparées des exemples publiés sur GitHub.
 
 Ce stockage convient à une démonstration locale avec un seul utilisateur. Pour
 un déploiement réel à plusieurs postes, il faudrait au minimum une base de

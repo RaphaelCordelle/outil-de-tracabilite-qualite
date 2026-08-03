@@ -1,7 +1,0 @@
-id_equipement,nom,categorie,zone,criticite,statut,description,guide_fichier,commentaire
-EQ-ROT-001,Unité d'extraction de mandrin,PROCESS,Atelier préparation,CRITIQUE,DISPONIBLE,Équipement rotatif destiné à séparer le noyau central d'une bobine métallique,docs/equipment-guides/extraction-mandrin.md,Accès réservé aux opérateurs formés
-EQ-CUT-001,Coupeuse de bandes programmable,DECOUPE,Atelier conversion,HAUTE,DISPONIBLE,Coupe répétitive de bandes papier selon une longueur configurée,docs/equipment-guides/coupeuse-bandes.md,
-EQ-ASP-001,Poste aspirant de brasage,ASPIRATION,Zone assemblage,HAUTE,DISPONIBLE,Captage localisé des fumées au poste de brasage,docs/equipment-guides/poste-aspirant-brasage.md,
-EQ-ASP-002,Table aspirante de collecte papier,ASPIRATION,Atelier conversion,MOYENNE,SURVEILLANCE,Plan grillagé aspirant destiné à collecter les chutes de papier,docs/equipment-guides/table-aspirante-papier.md,Contrôle du débit demandé
-EQ-LOG-001,Transpalette manuel,MANUTENTION,Zone logistique,HAUTE,DISPONIBLE,Déplacement de charges palettisées sur courte distance,docs/equipment-guides/transpalette-manuel.md,
-EQ-ACC-001,Sas à porte automatique,ACCES,Entrée zone propre,HAUTE,DISPONIBLE,Contrôle du passage vers la zone propre sans ouverture simultanée des accès,,

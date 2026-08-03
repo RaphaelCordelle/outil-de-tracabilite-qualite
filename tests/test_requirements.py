@@ -12,7 +12,7 @@ import unittest
 from console_ui import ConsoleApplication
 from models import ControleQualite, Lot
 from quality_rules import ValidationError, calculate_defect_rate, determine_result
-from reporting import generate_report
+from reporting import _markdown_table, generate_report
 from services import TraceabilityService
 
 
@@ -192,6 +192,13 @@ class RequirementTests(unittest.TestCase):
         ):
             self.assertIn(heading, content)
         self.assertIn("Données fictives utilisées", content)
+
+    def test_markdown_tables_escape_user_text(self) -> None:
+        table = _markdown_table(
+            ["Champ", "Valeur"],
+            [["Commentaire", "Mesure | contrôle\nSeconde ligne"]],
+        )
+        self.assertIn(r"Mesure \| contrôle<br>Seconde ligne", table[-1])
 
     def test_t014_export_persistence_json_and_manifest(self) -> None:
         lot = self.service.create_lot(self.lot())

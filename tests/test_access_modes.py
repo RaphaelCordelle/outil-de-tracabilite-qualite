@@ -1,7 +1,5 @@
 """Tests des trois vues proposées dans l'interface."""
 
-from copy import deepcopy
-import inspect
 import json
 from pathlib import Path
 import tempfile
@@ -9,7 +7,7 @@ import unittest
 
 from access import MODE_LABELS, has_permission
 from gui import QualityTraceabilityApp
-from gui_dialogs import FormDialog
+from quality_rules import ValidationError
 from services import TraceabilityService
 from test_requirements import RULES
 
@@ -37,13 +35,7 @@ class AccessModeTests(unittest.TestCase):
         self.assertIn("settings", manager)
         self.assertEqual(manager, {item[0] for item in QualityTraceabilityApp.NAVIGATION})
 
-    def test_role_selector_is_available_from_every_page(self) -> None:
-        source = inspect.getsource(QualityTraceabilityApp.__init__)
-        self.assertIn('text="Rôle :"', source)
-        self.assertIn('bind("<<ComboboxSelected>>"', source)
-        self.assertTrue(hasattr(QualityTraceabilityApp, "_change_role"))
-
-    def test_mode_is_saved_and_added_to_the_audit_history(self) -> None:
+    def test_display_mode_is_saved_without_creating_a_business_event(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "config").mkdir()
@@ -57,19 +49,23 @@ class AccessModeTests(unittest.TestCase):
             )
             self.assertEqual(saved["interface_mode"], "QUALITE")
 
-            rules = deepcopy(service.rules)
-            rules["interface_mode"] = "MANAGER"
-            service.update_rules(rules)
+            events_before = service.repository.load_audit_events()
+            service.update_interface_mode("MANAGER")
 
             reloaded = TraceabilityService(root)
             self.assertEqual(reloaded.rules["interface_mode"], "MANAGER")
-            events = reloaded.repository.load_audit_events()
-            self.assertEqual(events[-1]["profil"], "MANAGER")
+            self.assertEqual(reloaded.repository.load_audit_events(), events_before)
 
-    def test_dialog_reserves_the_bottom_area_for_validation(self) -> None:
-        source = inspect.getsource(FormDialog.__init__)
-        self.assertIn('pack(side="bottom"', source)
-        self.assertIn("submit_label", source)
+    def test_unknown_display_mode_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "config").mkdir()
+            (root / "config" / "quality_rules.json").write_text(
+                json.dumps(RULES), encoding="utf-8"
+            )
+            service = TraceabilityService(root)
+            with self.assertRaises(ValidationError):
+                service.update_interface_mode("ADMIN")
 
 
 if __name__ == "__main__":

@@ -24,4 +24,4 @@ l’installation restent prioritaires.
 - laisser le poste propre ;
 - ne pas ouvrir les filtres ou intervenir sur le réseau sans habilitation.
 
-Source de prévention : [INRS — Fumées de soudage](https://www.inrs.fr/risques/fumees-soudage/ce-qu-il-faut-retenir.html).
+Source de prévention : [INRS — Risques lors des opérations de brasage](https://www.inrs.fr/dam/inrs/CataloguePapier/DMT/TI-QR-73.pdf).

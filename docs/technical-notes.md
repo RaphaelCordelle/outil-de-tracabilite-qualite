@@ -23,7 +23,7 @@ ajoute un événement d’audit.
 
 ## Modes d'affichage
 
-Le rôle choisi dans la barre supérieure détermine les pages et les actions visibles.
+La vue choisie dans la barre supérieure détermine les pages et les actions visibles.
 L'employé se concentre sur la saisie et les équipements. L'inspecteur qualité
 valide les contrôles et traite les anomalies. Le manager voit aussi les réglages,
 les exports et l'historique.
@@ -40,9 +40,9 @@ Chaque état modifiable possède une action visible dans au moins une vue :
 |---|---|
 | lot | statut calculé depuis les contrôles, avec archivage et réactivation |
 | contrôle | passage entre en attente, validé et annulé par le profil qualité |
-| anomalie | acquittement, prise en charge, justification, résolution et réouverture |
-| équipement | changement manuel par le manager ou automatique après un incident |
-| incident | passage d'ouvert à en cours, résolu puis clôturé |
+| anomalie | acquittement, prise en charge ou justification ; résolution automatique |
+| équipement | mise sous surveillance ou blocage selon la gravité des incidents actifs |
+| incident | passage contrôlé d'ouvert à en cours, résolu puis clôturé ; le dernier incident bloquant libère l'équipement |
 | utilisation | démarrage et fin horodatés |
 
 ## Règles qualité
@@ -76,8 +76,9 @@ automatique. Si elle revient, l’anomalie est rouverte.
 
 ## Fichiers locaux
 
-Les données actives se trouvent dans `data/`. Le dossier `samples/` contient le
-jeu fictif utilisé par la commande de restauration.
+Les données actives se trouvent dans `data/`, qui n'est pas versionné. Lors du
+premier lancement, le contenu fictif de `samples/` y est copié automatiquement.
+La restauration est disponible en ligne de commande et dans la configuration Manager.
 
 | Fichier | Contenu |
 |---|---|

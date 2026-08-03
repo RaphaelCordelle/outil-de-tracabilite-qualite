@@ -16,9 +16,31 @@ from models import (
 )
 from quality_rules import detect_anomalies, weighted_defect_rate
 
-DISCLAIMER = (
-    "Données fictives utilisées uniquement pour présenter le projet."
-)
+DISCLAIMER = "Données fictives utilisées uniquement pour présenter le projet."
+LOT_STATUS_LABELS = {
+    "A_CONTROLER": "À contrôler",
+    "REJETE": "Rejeté",
+}
+REPORT_LABELS = {
+    "SOUDURE_FROIDE": "Soudure froide",
+    "COMPOSANT_ABSENT": "Composant absent",
+    "POLARITE_INVERSEE": "Polarité inversée",
+    "DEFAUT_VISUEL": "Défaut visuel",
+    "TEST_ELECTRIQUE": "Test électrique",
+    "MINEURE": "Mineure",
+    "MAJEURE": "Majeure",
+    "CRITIQUE": "Critique",
+    "OUVERT": "Ouvert",
+    "EN_COURS": "En cours",
+}
+
+
+def _percent(value: float, decimals: int = 2) -> str:
+    return f"{value:.{decimals}f}".replace(".", ",") + " %"
+
+
+def _markdown_cell(value: object) -> str:
+    return str(value).replace("|", r"\|").replace("\r\n", "<br>").replace("\n", "<br>")
 
 
 def _markdown_table(headers: list[str], rows: list[list[object]]) -> list[str]:
@@ -26,7 +48,10 @@ def _markdown_table(headers: list[str], rows: list[list[object]]) -> list[str]:
         "| " + " | ".join(headers) + " |",
         "|" + "|".join("---" for _ in headers) + "|",
     ]
-    lines.extend("| " + " | ".join(str(value) for value in row) + " |" for row in rows)
+    lines.extend(
+        "| " + " | ".join(_markdown_cell(value) for value in row) + " |"
+        for row in rows
+    )
     return lines
 
 
@@ -82,53 +107,54 @@ def generate_report(
             by_line.setdefault(lot.ligne_production, []).append(control)
 
     lines = [
-        "# Rapport qualité",
+        "# Suivi qualité",
         "",
-        f"Date : {now:%d/%m/%Y à %H:%M}",
+        f"Mis à jour le {now:%d/%m/%Y à %H:%M}",
         "",
-        f"_Note : {DISCLAIMER}_",
+        DISCLAIMER,
         "",
         "## Situation générale",
         "",
     ]
-    lines += _markdown_table(
-        ["Indicateur", "Valeur"],
-        [
-            ["Total des lots", len(lots)],
-            ["Lots conformes", statuses["CONFORME"]],
-            ["Lots à contrôler", statuses["A_CONTROLER"]],
-            ["Lots rejetés", statuses["REJETE"]],
-            ["Lots sans contrôle", statuses["SANS_CONTROLE"]],
-            ["Lots archivés", statuses["ARCHIVE"]],
-            ["Contrôles validés", len(validated_controls)],
-            ["Contrôles en attente", sum(
-                item.etat_controle == "EN_ATTENTE" for item in controls
-            )],
-            ["Contrôles annulés", sum(
-                item.etat_controle == "ANNULE" for item in controls
-            )],
-            ["Quantité totale contrôlée", total_inspected],
-            ["Défauts comptabilisés", total_defects],
-            ["Couverture des lots actifs", f"{coverage:.1f} %"],
-            ["Taux de défaut moyen pondéré", f"{weighted_rate:.2f} %"],
-        ],
+    summary_rows = [
+        ["Lots suivis", len(lots)],
+        ["Conformes", statuses["CONFORME"]],
+        ["À contrôler", statuses["A_CONTROLER"]],
+        ["Rejetés", statuses["REJETE"]],
+        ["Sans contrôle", statuses["SANS_CONTROLE"]],
+        ["Contrôles validés", len(validated_controls)],
+        ["Quantité contrôlée", total_inspected],
+        ["Défauts relevés", total_defects],
+        ["Lots contrôlés", _percent(coverage, 1)],
+        ["Taux de défaut pondéré", _percent(weighted_rate)],
+    ]
+    pending_controls = sum(
+        item.etat_controle == "EN_ATTENTE" for item in controls
     )
+    cancelled_controls = sum(item.etat_controle == "ANNULE" for item in controls)
+    if statuses["ARCHIVE"]:
+        summary_rows.insert(5, ["Archivés", statuses["ARCHIVE"]])
+    if pending_controls:
+        summary_rows.insert(7, ["Contrôles en attente", pending_controls])
+    if cancelled_controls:
+        summary_rows.insert(8, ["Contrôles annulés", cancelled_controls])
+    lines += _markdown_table(["Indicateur", "Résultat"], summary_rows)
 
     lines += ["", "## Écarts détectés", ""]
     lines += [f"- {item}" for item in anomalies] or ["Aucun écart détecté."]
     if anomaly_tracking:
         anomaly_statuses = Counter(item.statut for item in anomaly_tracking)
-        lines += ["", "### Suivi des anomalies", ""]
-        lines += _markdown_table(
-            ["Statut", "Nombre"],
-            [
-                ["Nouvelles", anomaly_statuses["NOUVELLE"]],
-                ["Acquittées", anomaly_statuses["ACQUITTEE"]],
-                ["En cours", anomaly_statuses["EN_COURS"]],
-                ["Ignorées avec justification", anomaly_statuses["IGNOREE"]],
-                ["Résolues", anomaly_statuses["RESOLUE"]],
-            ],
-        )
+        lines += ["", "### Traitement des anomalies", ""]
+        anomaly_rows = [
+            ["À traiter", anomaly_statuses["NOUVELLE"]],
+            ["En cours", anomaly_statuses["EN_COURS"]],
+            ["Résolues", anomaly_statuses["RESOLUE"]],
+        ]
+        if anomaly_statuses["ACQUITTEE"]:
+            anomaly_rows.insert(1, ["Acquittées", anomaly_statuses["ACQUITTEE"]])
+        if anomaly_statuses["IGNOREE"]:
+            anomaly_rows.append(["Ignorées", anomaly_statuses["IGNOREE"]])
+        lines += _markdown_table(["État", "Nombre"], anomaly_rows)
 
     lines += ["", "## Lots à examiner", ""]
     if non_conforming:
@@ -140,7 +166,9 @@ def generate_report(
                     lot.produit,
                     lot.ligne_production,
                     lot.quantite_produite,
-                    lot.statut.replace("_", " ").title(),
+                    LOT_STATUS_LABELS.get(
+                        lot.statut, lot.statut.replace("_", " ").title()
+                    ),
                 ]
                 for lot in non_conforming
             ],
@@ -151,10 +179,13 @@ def generate_report(
     lines += ["", "## Défauts les plus fréquents", ""]
     top_count = int(rules.get("report_top_defects", 5))
     if defect_totals:
-        unit = "occurrence(s)" if mode == "occurrences" else "défaut(s)"
+        unit = "Occurrences" if mode == "occurrences" else "Nombre"
         lines += _markdown_table(
-            ["Type de défaut", unit],
-            [[name, count] for name, count in defect_totals.most_common(top_count)],
+            ["Type", unit],
+            [
+                [REPORT_LABELS.get(name, name.replace("_", " ").capitalize()), count]
+                for name, count in defect_totals.most_common(top_count)
+            ],
         )
     else:
         lines.append("Aucun défaut enregistré.")
@@ -170,7 +201,7 @@ def generate_report(
                     line,
                     len(line_controls),
                     inspected,
-                    f"{weighted_defect_rate(defects, inspected):.2f} %",
+                    _percent(weighted_defect_rate(defects, inspected)),
                 ]
             )
         lines += _markdown_table(
@@ -189,14 +220,14 @@ def generate_report(
     lines += _markdown_table(
         ["Décision", "Règle"],
         [
-            ["Conforme", f"Taux ≤ {float(thresholds['conforme_max']):.2f} %"],
+            ["Conforme", f"Taux ≤ {_percent(float(thresholds['conforme_max']))}"],
             [
                 "À contrôler",
-                f"{float(thresholds['conforme_max']):.2f} % < taux ≤ "
-                f"{float(thresholds['a_controler_max']):.2f} %",
+                f"{_percent(float(thresholds['conforme_max']))} < taux ≤ "
+                f"{_percent(float(thresholds['a_controler_max']))}",
             ],
-            ["Rejeté", f"Taux > {float(thresholds['a_controler_max']):.2f} %"],
-            ["Alerte", f"Taux > {float(thresholds['abnormal_rate']):.2f} %"],
+            ["Rejeté", f"Taux > {_percent(float(thresholds['a_controler_max']))}"],
+            ["Alerte", f"Taux > {_percent(float(thresholds['abnormal_rate']))}"],
         ],
     )
     lines += ["", "## Équipements", ""]
@@ -208,22 +239,24 @@ def generate_report(
             if issue.statut in {"OUVERT", "EN_COURS"}
         ]
         total_usage_minutes = sum(item.duree_minutes for item in equipment_usage)
-        lines += _markdown_table(
-            ["Indicateur équipement", "Valeur"],
+        equipment_rows = [
+            ["Équipements suivis", len(equipment)],
+            ["Disponibles", equipment_statuses["DISPONIBLE"]],
+            ["Incidents ouverts", len(open_issues)],
             [
-                ["Équipements suivis", len(equipment)],
-                ["Disponibles", equipment_statuses["DISPONIBLE"]],
-                ["En utilisation", equipment_statuses["EN_UTILISATION"]],
-                ["Sous surveillance", equipment_statuses["SURVEILLANCE"]],
-                ["En maintenance", equipment_statuses["MAINTENANCE"]],
-                ["Hors service", equipment_statuses["HORS_SERVICE"]],
-                ["Incidents ouverts", len(open_issues)],
-                [
-                    "Temps d'utilisation enregistré",
-                    f"{total_usage_minutes / 60:.1f} h",
-                ],
+                "Utilisation enregistrée",
+                f"{total_usage_minutes / 60:.1f}".replace(".", ",") + " h",
             ],
-        )
+        ]
+        for status, label in (
+            ("EN_UTILISATION", "En utilisation"),
+            ("SURVEILLANCE", "Sous surveillance"),
+            ("MAINTENANCE", "En maintenance"),
+            ("HORS_SERVICE", "Hors service"),
+        ):
+            if equipment_statuses[status]:
+                equipment_rows.insert(-2, [label, equipment_statuses[status]])
+        lines += _markdown_table(["Indicateur", "Résultat"], equipment_rows)
         if open_issues:
             lines += ["", "### Incidents en cours", ""]
             equipment_by_id = {
@@ -239,8 +272,8 @@ def generate_report(
                             if issue.id_equipement in equipment_by_id
                             else issue.id_equipement
                         ),
-                        issue.gravite,
-                        issue.statut,
+                        REPORT_LABELS.get(issue.gravite, issue.gravite),
+                        REPORT_LABELS.get(issue.statut, issue.statut),
                         issue.description,
                     ]
                     for issue in open_issues

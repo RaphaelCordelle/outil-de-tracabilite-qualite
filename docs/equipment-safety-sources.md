@@ -10,9 +10,9 @@ poste ont toujours priorité.
 - [INRS — Prévenir le risque machine](https://www.inrs.fr/risques/machines/ce-qu-il-faut-retenir.html)
 - [INRS — Conception des machines et protection des éléments mobiles](https://www.inrs.fr/risques/conception-machines/demarche-conception.html)
 - [INRS — La main et la machine](https://www.inrs.fr/dms/inrs/CataloguePapier/ED/TI-ED-6499/ed6499.pdf)
-- [INRS — Fumées de soudage](https://www.inrs.fr/risques/fumees-soudage/ce-qu-il-faut-retenir.html)
+- [INRS — Risques lors des opérations de brasage](https://www.inrs.fr/dam/inrs/CataloguePapier/DMT/TI-QR-73.pdf)
 - [INRS — Captage des poussières au plus près de leur source](https://www.inrs.fr/metiers/metiers-du-bois/transformation-du-bois/poussiere/ventilation-aspiration.html)
-- [INRS — Transpalettes électriques à conducteur accompagnant](https://www.inrs.fr/media.html?refINRS=ED+36)
+- [INRS — Prévention dans le transport routier de marchandises](https://www.inrs.fr/metiers/transport/transport-routier-marchandises/transport-routier-marchandises-agir)
 
 Le sas à porte automatique ne possède volontairement pas de guide utilisateur
 dans l’application : l’utilisateur peut signaler un problème et consulter

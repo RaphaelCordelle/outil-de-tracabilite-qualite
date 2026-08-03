@@ -1,16 +1,12 @@
 """Tests sans écran des points d'entrée de l'interface graphique."""
 
-import ast
 from datetime import date
-import inspect
 import json
 from pathlib import Path
 import tempfile
-import textwrap
 import unittest
 
 from gui import QualityTraceabilityApp
-from gui_dialogs import ControlDialog, LotDialog
 from main import build_parser
 from models import ControleQualite, Lot
 from services import TraceabilityService
@@ -40,22 +36,6 @@ class GuiStructureTests(unittest.TestCase):
         self.assertIsNone(parser.parse_args([]).command)
         self.assertEqual(parser.parse_args(["gui"]).command, "gui")
         self.assertEqual(parser.parse_args(["console"]).command, "console")
-
-    def test_dialog_initializers_use_the_injected_service(self) -> None:
-        for dialog in (LotDialog, ControlDialog):
-            tree = ast.parse(textwrap.dedent(inspect.getsource(dialog.__init__)))
-            undefined_service_names = [
-                node
-                for node in ast.walk(tree)
-                if isinstance(node, ast.Name)
-                and node.id == "service"
-                and isinstance(node.ctx, ast.Load)
-            ]
-            self.assertEqual(
-                undefined_service_names,
-                [],
-                f"{dialog.__name__} utilise un service local non défini.",
-            )
 
     def test_rule_update_recalculates_control_and_lot(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

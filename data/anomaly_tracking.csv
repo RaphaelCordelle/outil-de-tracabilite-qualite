@@ -1,2 +1,0 @@
-id_anomalie,cle_anomalie,source,type_anomalie,entite_type,entite_id,gravite,description,statut,commentaire,date_detection,date_mise_a_jour,date_resolution
-ANO-20260704-001,QUALITE:LOT_SANS_CONTROLE_VALIDE:LOT-20260704-004,QUALITE,LOT_SANS_CONTROLE_VALIDE,LOT,LOT-20260704-004,ALERTE,Lot LOT-20260704-004 sans contrôle qualité validé.,NOUVELLE,,2026-07-04T09:00:00+02:00,2026-07-04T09:00:00+02:00,

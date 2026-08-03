@@ -95,6 +95,58 @@ class EquipmentTests(unittest.TestCase):
         )
         self.assertEqual(equipment.statut, "DISPONIBLE")
 
+    def test_last_resolved_major_issue_releases_equipment(self) -> None:
+        equipment = self.service.create_equipment(self.equipment())
+        issue = self.service.report_equipment_issue(
+            self.issue(equipment.id_equipement, "MAJEURE")
+        )
+        self.assertEqual(equipment.statut, "SURVEILLANCE")
+
+        self.service.update_equipment_issue(
+            issue.id_incident,
+            statut="EN_COURS",
+            action="Réglage en cours.",
+        )
+        self.service.update_equipment_issue(
+            issue.id_incident,
+            statut="RESOLU",
+            action="Réglage contrôlé, fonctionnement normal.",
+        )
+
+        self.assertEqual(equipment.statut, "DISPONIBLE")
+        self.assertEqual(self.service.open_equipment_issues(), [])
+        reloaded = TraceabilityService(self.root)
+        self.assertEqual(
+            reloaded.require_equipment(equipment.id_equipement).statut,
+            "DISPONIBLE",
+        )
+
+    def test_manual_maintenance_is_not_cancelled_by_a_minor_issue(self) -> None:
+        equipment = self.service.create_equipment(self.equipment())
+        self.service.update_equipment(equipment.id_equipement, statut="MAINTENANCE")
+        self.service.report_equipment_issue(
+            self.issue(equipment.id_equipement, "MINEURE")
+        )
+        self.assertEqual(equipment.statut, "MAINTENANCE")
+
+    def test_incident_statuses_follow_a_simple_sequence(self) -> None:
+        equipment = self.service.create_equipment(self.equipment())
+        issue = self.service.report_equipment_issue(self.issue(equipment.id_equipement))
+        with self.assertRaisesRegex(ValidationError, "Passage impossible"):
+            self.service.update_equipment_issue(
+                issue.id_incident, statut="CLOTURE", action="Clôture directe"
+            )
+        self.service.update_equipment_issue(
+            issue.id_incident, statut="EN_COURS", action="Diagnostic lancé"
+        )
+        self.service.update_equipment_issue(
+            issue.id_incident, statut="RESOLU", action="Réglage vérifié"
+        )
+        self.service.update_equipment_issue(
+            issue.id_incident, statut="CLOTURE", action="Suivi terminé"
+        )
+        self.assertEqual(issue.statut, "CLOTURE")
+
     def test_guide_is_optional_and_restricted_to_local_guide_folder(self) -> None:
         equipment = self.equipment()
         self.service.create_equipment(equipment)

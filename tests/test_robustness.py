@@ -3,6 +3,7 @@
 from datetime import date
 import json
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 
@@ -47,6 +48,25 @@ class RobustnessTests(unittest.TestCase):
         (self.root / "config" / "quality_rules.json").write_text("{", encoding="utf-8")
         with self.assertRaisesRegex(StorageError, "JSON illisible"):
             TraceabilityService(self.root)
+
+    def test_output_folders_exist_on_first_launch(self) -> None:
+        self.assertTrue(self.service.repository.reports_dir.is_dir())
+        self.assertTrue(self.service.repository.exports_dir.is_dir())
+
+    def test_first_launch_copies_the_sample_data(self) -> None:
+        lot = self.service.create_lot(
+            Lot(f"LOT-{self.code}-001", self.iso, "PCB_A1", 100, "LINE-01")
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "config").mkdir()
+            shutil.copy2(
+                self.root / "config" / "quality_rules.json",
+                root / "config" / "quality_rules.json",
+            )
+            shutil.copytree(self.service.repository.data_dir, root / "samples")
+            reloaded = TraceabilityService(root)
+            self.assertEqual(reloaded.require_lot(lot.id_lot).produit, "PCB_A1")
 
     def test_archive_is_reversible_and_blocks_new_controls(self) -> None:
         lot = self.service.create_lot(

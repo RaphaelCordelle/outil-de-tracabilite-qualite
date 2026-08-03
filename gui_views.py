@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
-from typing import Any
+from typing import Any, Optional
 import webbrowser
 
 from access import MODE_LABELS
@@ -22,7 +22,13 @@ from gui_dialogs import (
     LotDialog,
 )
 from gui_theme import Colors
-from gui_widgets import DataTable, KpiCard, Page, Surface
+from gui_widgets import DataTable, KpiCard, Page, Surface, display_code
+from models import SuiviAnomalie
+from quality_rules import ANOMALY_STATUS_TRANSITIONS, ValidationError
+from reporting import generate_report
+from storage import StorageError
+
+USER_ERRORS = (StorageError, ValidationError, OSError, ValueError)
 
 
 def _open_path(path: Path) -> None:
@@ -55,6 +61,8 @@ AUDIT_LABELS = {
 def _audit_label(code: str) -> str:
     return AUDIT_LABELS.get(code, code.replace("_", " ").capitalize())
 
+
+# Tableau de bord, lots et contrôles
 
 class DashboardView(Page):
     def __init__(self, parent: tk.Misc, app: Any) -> None:
@@ -115,6 +123,12 @@ class DashboardView(Page):
             horizontal_scroll=False,
         )
         self.anomaly_table.pack(fill="both", expand=True)
+        self.anomaly_table.tree.bind("<Double-1>", lambda _event: self._open_alert())
+        ttk.Button(
+            anomalies,
+            text="Ouvrir l'élément sélectionné",
+            command=self._open_alert,
+        ).pack(anchor="e", pady=(8, 0))
 
         self.show_recent_events = app.can("view_audit")
         recent = Surface(lower)
@@ -160,6 +174,33 @@ class DashboardView(Page):
     def _new_control(self) -> None:
         ControlDialog(self, self.app, self.app.refresh_all)
 
+    def _open_alert(self) -> None:
+        selected = self.anomaly_table.selected_id()
+        if not selected or ":" not in selected:
+            messagebox.showinfo(
+                "Sélection requise",
+                "Sélectionnez une alerte dans le tableau.",
+                parent=self,
+            )
+            return
+        kind, item_id = selected.split(":", 1)
+        page_key = "anomalies" if kind == "anomaly" else "equipment"
+        if page_key not in self.app.pages:
+            return
+        self.app.show_page(page_key)
+        page = self.app.pages[page_key]
+        if kind == "anomaly":
+            page.status_filter.set("TOUTES")
+            page._refresh_table()
+            table = page.table
+        else:
+            page.tabs.select(1)
+            table = page.issue_table
+        if table.tree.exists(item_id):
+            table.tree.selection_set(item_id)
+            table.tree.focus(item_id)
+            table.tree.see(item_id)
+
     def refresh(self) -> None:
         summary = self.app.service.summary()
         self.cards["lots"].set_value(summary.total_lots)
@@ -168,7 +209,11 @@ class DashboardView(Page):
         self.cards["rejected"].set_value(summary.lots_rejetes)
 
         self.anomaly_table.clear()
-        anomalies = self.app.service.active_tracked_anomalies()
+        anomalies = (
+            []
+            if self.app.mode == "EMPLOYE"
+            else self.app.service.active_tracked_anomalies()
+        )
         equipment_issues = self.app.service.open_equipment_issues()
         if not anomalies and not equipment_issues:
             self.anomaly_table.add(("OK", "Aucune anomalie détectée"))
@@ -176,16 +221,19 @@ class DashboardView(Page):
             equipment = self.app.service.require_equipment(issue.id_equipement)
             self.anomaly_table.add(
                 (
-                    issue.gravite,
+                    display_code(issue.gravite),
                     f"{equipment.nom} — {issue.description}",
                 ),
+                item_id=f"issue:{issue.id_incident}",
                 tags=("danger" if issue.gravite == "CRITIQUE" else "warning",),
             )
         for anomaly in anomalies[:12]:
             level = anomaly.gravite
             tag = "warning" if level == "ALERTE" else "danger"
             self.anomaly_table.add(
-                (level, anomaly.description), tags=(tag,)
+                (display_code(level), anomaly.description),
+                item_id=f"anomaly:{anomaly.id_anomalie}",
+                tags=(tag,),
             )
 
         if self.show_recent_events:
@@ -313,7 +361,7 @@ class LotsView(Page):
                     lot.produit,
                     lot.ligne_production,
                     lot.quantite_produite,
-                    lot.statut.replace("_", " "),
+                    display_code(lot.statut),
                     lot.commentaire,
                 ),
                 item_id=lot.id_lot,
@@ -434,7 +482,7 @@ class ControlsView(Page):
                     control.nombre_defauts,
                     f"{control.taux_defaut:.2f} %",
                     control.type_defaut,
-                    control.resultat.replace("_", " "),
+                    display_code(control.resultat),
                     CONTROL_STATE_LABELS[control.etat_controle],
                     control.commentaire,
                 ),
@@ -444,6 +492,8 @@ class ControlsView(Page):
         self.count_label.configure(text=f"{len(controls)} contrôle(s)")
 
 
+# Suivi qualité et rapports
+
 class AnomaliesView(Page):
     def __init__(self, parent: tk.Misc, app: Any) -> None:
         self.app = app
@@ -451,10 +501,6 @@ class AnomaliesView(Page):
             parent,
             "Suivi des anomalies",
             "Anomalies repérées dans les lots et les contrôles.",
-            actions=(
-                ("Synchroniser", self._synchronize, "TButton"),
-                ("Corriger les calculs", self._repair, "Primary.TButton"),
-            ),
         )
         cards = ttk.Frame(self.body)
         cards.pack(fill="x", pady=(0, 12))
@@ -472,21 +518,6 @@ class AnomaliesView(Page):
                 padx=(0, 8 if column < 3 else 0),
             )
             cards.columnconfigure(column, weight=1, uniform="anomaly_kpi")
-
-        note = tk.Label(
-            self.body,
-            text=(
-                "Le statut de suivi ne modifie jamais le calcul d'origine. "
-                "« Retirer » classe l'anomalie comme ignorée avec une justification "
-                "et conserve son historique."
-            ),
-            background=Colors.INFO_BG,
-            foreground=Colors.INFO,
-            anchor="w",
-            padx=14,
-            pady=10,
-        )
-        note.pack(fill="x", pady=(0, 10))
 
         filters = Surface(self.body, padding=10)
         filters.pack(fill="x", pady=(0, 10))
@@ -544,30 +575,17 @@ class AnomaliesView(Page):
         actions.pack(fill="x", pady=(10, 0))
         ttk.Button(
             actions,
-            text="Ouvrir le traitement",
+            text="Traiter l'anomalie",
             command=self._edit,
             style="Primary.TButton",
         ).pack(side="left")
         ttk.Button(
-            actions, text="Prendre en charge", command=self._start_progress
-        ).pack(side="left", padx=7)
-        ttk.Button(
-            actions, text="Acquitter", command=self._acknowledge
-        ).pack(side="left")
-        ttk.Button(
             actions,
-            text="Retirer de la vue active",
+            text="Ignorer avec justification",
             command=self._ignore,
-            style="Danger.TButton",
-        ).pack(side="left", padx=7)
-        ttk.Button(
-            actions, text="Réouvrir", command=self._reopen
-        ).pack(side="left")
-        ttk.Button(
-            actions, text="Marquer résolue", command=self._resolve
         ).pack(side="left", padx=7)
 
-    def _selected(self) -> Any:
+    def _selected(self) -> Optional[SuiviAnomalie]:
         anomaly_id = self.table.selected_id()
         if not anomaly_id:
             messagebox.showwarning(
@@ -585,36 +603,16 @@ class AnomaliesView(Page):
                 self, self.app, anomaly, self.app.refresh_all
             )
 
-    def _quick_update(self, status: str, comment: str = "") -> None:
-        anomaly = self._selected()
-        if not anomaly:
-            return
-        try:
-            self.app.service.update_anomaly_tracking(
-                anomaly.id_anomalie,
-                statut=status,
-                commentaire=comment or anomaly.commentaire,
-            )
-        except self.app.dependencies.error_types as exc:
-            messagebox.showerror("Mise à jour impossible", str(exc), parent=self)
-            return
-        self.app.refresh_all()
-
-    def _start_progress(self) -> None:
-        self._quick_update("EN_COURS")
-
-    def _acknowledge(self) -> None:
-        self._quick_update("ACQUITTEE")
-
-    def _reopen(self) -> None:
-        self._quick_update("NOUVELLE")
-
-    def _resolve(self) -> None:
-        self._quick_update("RESOLUE")
-
     def _ignore(self) -> None:
         anomaly = self._selected()
         if not anomaly:
+            return
+        if "IGNOREE" not in ANOMALY_STATUS_TRANSITIONS[anomaly.statut]:
+            messagebox.showinfo(
+                "Action indisponible",
+                "Cette anomalie ne peut pas être ignorée dans son état actuel.",
+                parent=self,
+            )
             return
         reason = simpledialog.askstring(
             "Retirer de la vue active",
@@ -633,34 +631,9 @@ class AnomaliesView(Page):
                 statut="IGNOREE",
                 commentaire=reason,
             )
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             messagebox.showerror("Retrait impossible", str(exc), parent=self)
             return
-        self.app.refresh_all()
-
-    def _synchronize(self) -> None:
-        try:
-            self.app.service.synchronize_anomalies()
-        except self.app.dependencies.error_types as exc:
-            messagebox.showerror("Synchronisation impossible", str(exc), parent=self)
-            return
-        self.app.refresh_all()
-
-    def _repair(self) -> None:
-        if not messagebox.askyesno(
-            "Confirmer le recalcul",
-            "Recalculer les taux, résultats et statuts dérivés ?",
-            parent=self,
-        ):
-            return
-        try:
-            count = self.app.service.repair_inconsistencies()
-        except self.app.dependencies.error_types as exc:
-            messagebox.showerror("Correction impossible", str(exc), parent=self)
-            return
-        messagebox.showinfo(
-            "Recalcul terminé", f"{count} champ(s) corrigé(s).", parent=self
-        )
         self.app.refresh_all()
 
     def _refresh_table(self) -> None:
@@ -693,9 +666,9 @@ class AnomaliesView(Page):
             self.table.add(
                 (
                     anomaly.id_anomalie,
-                    anomaly.gravite,
+                    display_code(anomaly.gravite),
                     f"{anomaly.entite_type} {anomaly.entite_id}",
-                    anomaly.type_anomalie.replace("_", " "),
+                    display_code(anomaly.type_anomalie),
                     anomaly.description,
                     ANOMALY_STATUS_LABELS[anomaly.statut],
                     anomaly.date_mise_a_jour[:16].replace("T", " "),
@@ -726,64 +699,113 @@ class AnomaliesView(Page):
 class ReportsView(Page):
     def __init__(self, parent: tk.Misc, app: Any) -> None:
         self.app = app
-        page_actions = [("Générer un rapport", self._report, "Primary.TButton")]
-        if app.can("export_data"):
-            page_actions.append(("Créer un export", self._export, "TButton"))
         super().__init__(
             parent,
             "Rapports" if not app.can("export_data") else "Rapports et exports",
-            "Rapports construits à partir des données enregistrées.",
-            actions=tuple(page_actions),
+            "Consultez une synthèse ou préparez une copie des données.",
         )
+
+        help_box = Surface(self.body, padding=12)
+        help_box.pack(fill="x", pady=(0, 12))
+        help_text = (
+            "Rapport : résumé lisible de la situation au moment de la génération."
+        )
+        if app.can("export_data"):
+            help_text += (
+                "  Export : copie complète des CSV et de la configuration, "
+                "avec un fichier de contrôle d'intégrité."
+            )
+        ttk.Label(
+            help_box,
+            text=help_text,
+            style="Surface.TLabel",
+            wraplength=1050,
+        ).pack(anchor="w")
+
         reports = Surface(self.body)
         reports.pack(fill="both", expand=True, pady=(0, 12))
-        ttk.Label(reports, text="Rapports Markdown", style="Section.TLabel").pack(
-            anchor="w", pady=(0, 10)
-        )
+        report_header = ttk.Frame(reports, style="Surface.TFrame")
+        report_header.pack(fill="x", pady=(0, 4))
+        ttk.Label(
+            report_header, text="Rapports de suivi", style="Section.TLabel"
+        ).pack(side="left")
+        ttk.Button(
+            report_header,
+            text="Générer un rapport",
+            command=self._report,
+            style="Primary.TButton",
+        ).pack(side="right")
+        self.report_count = ttk.Label(report_header, style="Subtitle.TLabel")
+        self.report_count.pack(side="right", padx=(0, 12))
+        ttk.Label(
+            reports,
+            text="Sélectionnez un fichier puis ouvrez-le. Un double-clic fonctionne aussi.",
+            style="Subtitle.TLabel",
+        ).pack(anchor="w", pady=(0, 10))
+        ttk.Button(
+            reports,
+            text="Ouvrir le rapport sélectionné",
+            command=self._open_report,
+        ).pack(side="bottom", anchor="e", pady=(10, 0))
         self.report_table = DataTable(
             reports,
             [
-                ("name", "Fichier", 500, "w"),
-                ("date", "Dernière modification", 180, "center"),
+                ("name", "Fichier", 430, "w"),
+                ("type", "Type", 140, "center"),
+                ("date", "Modifié le", 180, "center"),
                 ("size", "Taille", 100, "e"),
             ],
-            height=7,
+            height=4,
         )
         self.report_table.pack(fill="both", expand=True)
         self.report_table.tree.bind("<Double-1>", lambda _event: self._open_report())
-        ttk.Button(reports, text="Ouvrir le rapport sélectionné", command=self._open_report).pack(
-            anchor="e", pady=(10, 0)
-        )
 
         self.export_table = None
+        self.export_count = None
         if app.can("export_data"):
             exports = Surface(self.body)
             exports.pack(fill="both", expand=True)
-            ttk.Label(exports, text="Exports de données", style="Section.TLabel").pack(
-                anchor="w", pady=(0, 10)
+            export_header = ttk.Frame(exports, style="Surface.TFrame")
+            export_header.pack(fill="x", pady=(0, 4))
+            ttk.Label(
+                export_header, text="Copies des données", style="Section.TLabel"
+            ).pack(side="left")
+            ttk.Button(
+                export_header,
+                text="Créer un export",
+                command=self._export,
+            ).pack(side="right")
+            self.export_count = ttk.Label(
+                export_header, style="Subtitle.TLabel"
             )
+            self.export_count.pack(side="right", padx=(0, 12))
+            ttk.Label(
+                exports,
+                text="Sélectionnez un dossier pour consulter les fichiers exportés.",
+                style="Subtitle.TLabel",
+            ).pack(anchor="w", pady=(0, 10))
+            ttk.Button(
+                exports,
+                text="Ouvrir l'export sélectionné",
+                command=self._open_export,
+            ).pack(side="bottom", anchor="e", pady=(10, 0))
             self.export_table = DataTable(
                 exports,
                 [
                     ("name", "Dossier", 500, "w"),
-                    ("date", "Création", 180, "center"),
+                    ("date", "Créé le", 180, "center"),
                     ("files", "Fichiers", 100, "e"),
                 ],
-                height=5,
+                height=4,
             )
             self.export_table.pack(fill="both", expand=True)
             self.export_table.tree.bind(
                 "<Double-1>", lambda _event: self._open_export()
             )
-            ttk.Button(
-                exports,
-                text="Ouvrir l'export sélectionné",
-                command=self._open_export,
-            ).pack(anchor="e", pady=(10, 0))
 
     def _report(self) -> None:
         try:
-            path = self.app.dependencies.report_generator(
+            path = generate_report(
                 self.app.root_path,
                 self.app.service.lots,
                 self.app.service.controls,
@@ -793,11 +815,18 @@ class ReportsView(Page):
                 self.app.service.equipment_usage,
                 self.app.service.tracked_anomalies(),
             )
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             messagebox.showerror("Rapport impossible", str(exc), parent=self)
             return
-        messagebox.showinfo("Rapport créé", str(path), parent=self)
         self.refresh()
+        self.report_table.tree.selection_set(path.name)
+        self.report_table.tree.focus(path.name)
+        self.report_table.tree.see(path.name)
+        messagebox.showinfo(
+            "Rapport prêt",
+            "Le rapport a été ajouté à la liste.",
+            parent=self,
+        )
 
     def _export(self) -> None:
         try:
@@ -810,21 +839,41 @@ class ReportsView(Page):
                 self.app.service.equipment_usage,
                 self.app.service.tracked_anomalies(),
             )
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             messagebox.showerror("Export impossible", str(exc), parent=self)
             return
-        messagebox.showinfo("Export créé", str(path), parent=self)
         self.refresh()
+        if self.export_table:
+            self.export_table.tree.selection_set(path.name)
+            self.export_table.tree.focus(path.name)
+            self.export_table.tree.see(path.name)
+        messagebox.showinfo(
+            "Export prêt",
+            "La copie des données a été ajoutée à la liste.",
+            parent=self,
+        )
 
     def _open_report(self) -> None:
         selected = self.report_table.selected_id()
-        if selected:
-            _open_path(self.app.root_path / "reports" / selected)
+        if not selected:
+            messagebox.showwarning(
+                "Sélection requise",
+                "Sélectionnez un rapport dans la liste.",
+                parent=self,
+            )
+            return
+        _open_path(self.app.root_path / "reports" / selected)
 
     def _open_export(self) -> None:
         selected = self.export_table.selected_id() if self.export_table else None
-        if selected:
-            _open_path(self.app.root_path / "exports" / selected)
+        if not selected:
+            messagebox.showwarning(
+                "Sélection requise",
+                "Sélectionnez un export dans la liste.",
+                parent=self,
+            )
+            return
+        _open_path(self.app.root_path / "exports" / selected)
 
     def refresh(self) -> None:
         self.report_table.clear()
@@ -838,15 +887,20 @@ class ReportsView(Page):
             self.report_table.add(
                 (
                     path.name,
-                    datetime.fromtimestamp(modified).strftime("%Y-%m-%d %H:%M"),
+                    "Exemple livré"
+                    if path.name == "example_quality_report.md"
+                    else "Rapport généré",
+                    datetime.fromtimestamp(modified).strftime("%d/%m/%Y %H:%M"),
                     f"{path.stat().st_size / 1024:.1f} Ko",
                 ),
                 item_id=path.name,
             )
+        self.report_count.configure(text=f"{len(reports)} rapport(s)")
         if self.export_table is None:
             return
         self.export_table.clear()
         export_root = self.app.root_path / "exports"
+        export_root.mkdir(parents=True, exist_ok=True)
         directories = sorted(
             (path for path in export_root.iterdir() if path.is_dir()),
             key=lambda path: path.stat().st_mtime,
@@ -857,13 +911,17 @@ class ReportsView(Page):
                 (
                     path.name,
                     datetime.fromtimestamp(path.stat().st_mtime).strftime(
-                        "%Y-%m-%d %H:%M"
+                        "%d/%m/%Y %H:%M"
                     ),
                     len(list(path.iterdir())),
                 ),
                 item_id=path.name,
             )
+        if self.export_count:
+            self.export_count.configure(text=f"{len(directories)} export(s)")
 
+
+# Historique et configuration
 
 class AuditView(Page):
     def __init__(self, parent: tk.Misc, app: Any) -> None:
@@ -962,7 +1020,10 @@ class SettingsView(Page):
             parent,
             "Configuration",
             "Seuils de contrôle, lignes de production et types de défaut.",
-            actions=(("Enregistrer", self._save, "Primary.TButton"),),
+            actions=(
+                ("Restaurer les données d'exemple", self._restore_demo, "TButton"),
+                ("Enregistrer", self._save, "Primary.TButton"),
+            ),
         )
         wrapper = ttk.Frame(self.body)
         wrapper.pack(fill="both", expand=True)
@@ -1102,7 +1163,7 @@ class SettingsView(Page):
             rules["production_lines"] = self._list_values(self.lines)
             rules["defect_types"] = self._list_values(self.defects)
             corrections = self.app.service.update_rules(rules)
-        except self.app.dependencies.error_types as exc:
+        except USER_ERRORS as exc:
             messagebox.showerror("Configuration invalide", str(exc), parent=self)
             return
         messagebox.showinfo(
@@ -1111,6 +1172,25 @@ class SettingsView(Page):
             parent=self,
         )
         self.app.refresh_all()
+
+    def _restore_demo(self) -> None:
+        if not messagebox.askyesno(
+            "Restaurer les données d'exemple",
+            "Les données actuelles seront sauvegardées puis remplacées. Continuer ?",
+            parent=self,
+        ):
+            return
+        try:
+            self.app.service.repository.restore_sample_data()
+            self.app.reload_service()
+        except USER_ERRORS as exc:
+            messagebox.showerror("Restauration impossible", str(exc), parent=self)
+            return
+        messagebox.showinfo(
+            "Données restaurées",
+            "Le jeu de données d'exemple est à nouveau disponible.",
+            parent=self,
+        )
 
     def refresh(self) -> None:
         rules = self.app.service.rules

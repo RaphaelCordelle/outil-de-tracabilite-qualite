@@ -8,5 +8,6 @@ __pycache__/
 .pytest_cache/
 
 logs/
+data/
 exports/
 reports/quality_report_*.md

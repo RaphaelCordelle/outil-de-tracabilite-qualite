@@ -21,7 +21,10 @@ from models import (
     UtilisationEquipement,
 )
 from quality_rules import (
+    ANOMALY_STATUS_TRANSITIONS,
+    ISSUE_STATUS_TRANSITIONS,
     VALID_ANOMALY_STATUSES,
+    VALID_INTERFACE_MODES,
     VALID_ISSUE_STATUSES,
     ValidationError,
     calculate_defect_rate,
@@ -50,6 +53,9 @@ class TraceabilityService:
         self.rules = self.repository.load_rules()
         mode_was_missing = "interface_mode" not in self.rules
         self.rules.setdefault("interface_mode", "QUALITE")
+        self.rules["interface_mode"] = self.repository.load_interface_mode(
+            self.rules["interface_mode"]
+        )
         validate_rules(self.rules)
         if mode_was_missing:
             self.repository.save_rules(self.rules)
@@ -148,6 +154,23 @@ class TraceabilityService:
             # Une indisponibilité du journal ne doit pas annuler une donnée déjà
             # sauvegardée. Elle reste visible dans le log technique.
             LOGGER.warning("Événement d'audit non enregistré : %s", exc)
+
+    def update_interface_mode(self, mode: str) -> None:
+        """Mémorise la vue choisie sans recalculer les données métier."""
+
+        if mode not in VALID_INTERFACE_MODES:
+            raise ValidationError("Le profil d'affichage est inconnu.")
+        if mode == self.rules.get("interface_mode"):
+            return
+        next_rules = dict(self.rules)
+        next_rules["interface_mode"] = mode
+        try:
+            self.repository.save_interface_mode(mode)
+            self.rules = next_rules
+        except Exception:
+            raise
+
+    # Équipements, incidents et utilisations
 
     def get_equipment(self, equipment_id: str) -> Equipement | None:
         return self._equipment_by_id.get(equipment_id)
@@ -285,20 +308,40 @@ class TraceabilityService:
             None,
         )
 
-    def _refresh_equipment_status(self, equipment_id: str) -> None:
+    def _refresh_equipment_status(
+        self,
+        equipment_id: str,
+        resolved_issue: IncidentEquipement | None = None,
+    ) -> None:
         equipment = self.require_equipment(equipment_id)
         active_issues = [
             issue
             for issue in self._issues_by_equipment.get(equipment_id, [])
             if issue.statut in {"OUVERT", "EN_COURS"}
         ]
-        if any(issue.gravite == "CRITIQUE" for issue in active_issues):
+        if (
+            any(issue.gravite == "CRITIQUE" for issue in active_issues)
+            and equipment.statut != "MAINTENANCE"
+        ):
             equipment.statut = "HORS_SERVICE"
-        elif any(issue.gravite == "MAJEURE" for issue in active_issues):
-            equipment.statut = "SURVEILLANCE"
         elif self.active_equipment_usage(equipment_id):
             equipment.statut = "EN_UTILISATION"
-        else:
+        elif any(issue.gravite == "MAJEURE" for issue in active_issues):
+            if equipment.statut not in {"MAINTENANCE", "HORS_SERVICE"}:
+                equipment.statut = "SURVEILLANCE"
+        elif (
+            resolved_issue
+            and resolved_issue.gravite == "CRITIQUE"
+            and equipment.statut == "HORS_SERVICE"
+        ):
+            equipment.statut = "DISPONIBLE"
+        elif (
+            resolved_issue
+            and resolved_issue.gravite == "MAJEURE"
+            and equipment.statut == "SURVEILLANCE"
+        ):
+            equipment.statut = "DISPONIBLE"
+        elif equipment.statut == "EN_UTILISATION":
             equipment.statut = "DISPONIBLE"
 
     def report_equipment_issue(
@@ -336,6 +379,10 @@ class TraceabilityService:
         issue = self.require_equipment_issue(issue_id)
         if statut not in VALID_ISSUE_STATUSES:
             raise ValidationError("Statut d'incident inconnu.")
+        if statut not in ISSUE_STATUS_TRANSITIONS[issue.statut]:
+            raise ValidationError(
+                f"Passage impossible de {issue.statut} vers {statut}."
+            )
         if statut in {"RESOLU", "CLOTURE"} and not action.strip():
             raise ValidationError(
                 "Une action réalisée est requise pour résoudre ou clôturer l'incident."
@@ -352,7 +399,10 @@ class TraceabilityService:
         )
         try:
             validate_equipment_issue(issue, equipment)
-            self._refresh_equipment_status(equipment.id_equipement)
+            self._refresh_equipment_status(
+                equipment.id_equipement,
+                issue if statut in {"RESOLU", "CLOTURE"} else None,
+            )
             self.repository.save_equipment_issues(self.equipment_issues)
             self.repository.save_equipment(self.equipment)
         except Exception:
@@ -378,7 +428,7 @@ class TraceabilityService:
         equipment = self.require_equipment(equipment_id)
         if self.active_equipment_usage(equipment_id):
             raise ValidationError("Une utilisation est déjà en cours.")
-        if equipment.statut not in {"DISPONIBLE", "SURVEILLANCE"}:
+        if equipment.statut != "DISPONIBLE":
             raise ValidationError(
                 f"L'équipement est {equipment.statut.replace('_', ' ').lower()}."
             )
@@ -460,6 +510,8 @@ class TraceabilityService:
         if guides_root not in path.parents or not path.is_file():
             raise ValidationError("Le guide associé est introuvable ou invalide.")
         return path
+
+    # Lots et contrôles qualité
 
     def create_lot(self, lot: Lot) -> Lot:
         if self.get_lot(lot.id_lot):
@@ -801,6 +853,8 @@ class TraceabilityService:
     def anomaly_details(self) -> list[AnomalieDetectee]:
         return detect_anomaly_details(self.lots, self.controls, self.rules)
 
+    # Détection et suivi des anomalies
+
     def synchronize_anomalies(self) -> list[SuiviAnomalie]:
         """Crée, réouvre ou résout les suivis selon la détection actuelle."""
 
@@ -936,6 +990,10 @@ class TraceabilityService:
             raise ValidationError(
                 "La cause est encore présente. Corrigez d'abord la donnée concernée, "
                 "ou classez l'anomalie comme ignorée en indiquant pourquoi."
+            )
+        if statut not in ANOMALY_STATUS_TRANSITIONS[anomaly.statut]:
+            raise ValidationError(
+                f"Passage impossible de {anomaly.statut} vers {statut}."
             )
         original = replace(anomaly)
         now = datetime.now().astimezone().isoformat(timespec="seconds")

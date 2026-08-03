@@ -24,4 +24,4 @@ circulation du site.
 - stationner l’appareil sans gêner une circulation ou une issue ;
 - signaler toute fuite, roue bloquée, déformation ou difficulté de commande.
 
-Source de prévention : [INRS — Transpalettes électriques à conducteur accompagnant, principes de vérification et circulation](https://www.inrs.fr/media.html?refINRS=ED+36).
+Source de prévention : [INRS — Prévention dans le transport routier de marchandises](https://www.inrs.fr/metiers/transport/transport-routier-marchandises/transport-routier-marchandises-agir).

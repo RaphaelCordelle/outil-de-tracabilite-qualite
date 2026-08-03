@@ -8,6 +8,39 @@ from typing import Callable, Iterable, Optional, Sequence
 
 from gui_theme import Colors, STATUS_COLORS
 
+DISPLAY_LABELS = {
+    "SANS_CONTROLE": "Sans contrôle",
+    "A_CONTROLER": "À contrôler",
+    "REJETE": "Rejeté",
+    "EN_ATTENTE": "En attente",
+    "EN_UTILISATION": "En utilisation",
+    "HORS_SERVICE": "Hors service",
+    "ACQUITTEE": "Acquittée",
+    "IGNOREE": "Ignorée",
+    "RESOLUE": "Résolue",
+    "CLOTURE": "Clôturé",
+    "CRITIQUE": "Critique",
+    "FAIBLE": "Faible",
+    "MOYENNE": "Moyenne",
+    "HAUTE": "Haute",
+    "MAJEURE": "Majeure",
+    "MINEURE": "Mineure",
+    "SECURITE": "Sécurité",
+    "DECOUPE": "Découpe",
+    "ACCES": "Accès",
+    "REGLAGE": "Réglage",
+    "BRUIT_VIBRATION": "Bruit / vibration",
+    "SOUDURE_FROIDE": "Soudure froide",
+    "COMPOSANT_ABSENT": "Composant absent",
+    "POLARITE_INVERSEE": "Polarité inversée",
+    "DEFAUT_VISUEL": "Défaut visuel",
+    "TEST_ELECTRIQUE": "Test électrique",
+}
+
+
+def display_code(value: str) -> str:
+    return DISPLAY_LABELS.get(value, value.replace("_", " ").capitalize())
+
 
 class Page(ttk.Frame):
     """Base commune des pages avec titre, description et zone de contenu."""
@@ -80,7 +113,7 @@ class StatusLabel(tk.Label):
         )
         super().__init__(
             parent,
-            text=status.replace("_", " "),
+            text=display_code(status),
             foreground=foreground,
             background=background,
             font=("Segoe UI Semibold", 9),

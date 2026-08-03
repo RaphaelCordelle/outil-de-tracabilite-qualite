@@ -82,12 +82,25 @@ VALID_EQUIPMENT_STATUSES = {
 VALID_CRITICALITIES = {"FAIBLE", "MOYENNE", "HAUTE", "CRITIQUE"}
 VALID_ISSUE_SEVERITIES = {"MINEURE", "MAJEURE", "CRITIQUE"}
 VALID_ISSUE_STATUSES = {"OUVERT", "EN_COURS", "RESOLU", "CLOTURE"}
+ISSUE_STATUS_TRANSITIONS = {
+    "OUVERT": {"OUVERT", "EN_COURS", "RESOLU"},
+    "EN_COURS": {"EN_COURS", "RESOLU"},
+    "RESOLU": {"RESOLU", "CLOTURE", "OUVERT"},
+    "CLOTURE": {"CLOTURE", "OUVERT"},
+}
 VALID_ANOMALY_STATUSES = {
     "NOUVELLE",
     "ACQUITTEE",
     "EN_COURS",
     "IGNOREE",
     "RESOLUE",
+}
+ANOMALY_STATUS_TRANSITIONS = {
+    "NOUVELLE": {"NOUVELLE", "ACQUITTEE", "EN_COURS", "IGNOREE"},
+    "ACQUITTEE": {"ACQUITTEE", "NOUVELLE", "EN_COURS", "IGNOREE"},
+    "EN_COURS": {"EN_COURS", "ACQUITTEE", "IGNOREE"},
+    "IGNOREE": {"IGNOREE", "NOUVELLE"},
+    "RESOLUE": {"RESOLUE"},
 }
 VALID_ANOMALY_SEVERITIES = {"INFO", "ALERTE", "CRITIQUE"}
 VALID_INTERFACE_MODES = {"EMPLOYE", "QUALITE", "MANAGER"}
@@ -174,7 +187,9 @@ def validate_lot(lot: Lot, rules: dict) -> None:
 
 def validate_control(control: ControleQualite, lot: Lot, rules: dict) -> None:
     if not all((control.id_controle, control.id_lot, control.date_controle, control.type_defaut)):
-        raise ValidationError("Tous les champs obligatoires du contrôle doivent être renseignés.")
+        raise ValidationError(
+            "Tous les champs obligatoires du contrôle doivent être renseignés."
+        )
     if not CONTROL_ID.fullmatch(control.id_controle):
         raise ValidationError("L'identifiant du contrôle doit respecter QC-YYYYMMDD-XXX.")
     control_date = parse_iso_date(control.date_controle, "date_controle")

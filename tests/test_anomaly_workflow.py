@@ -90,6 +90,27 @@ class AnomalyWorkflowTests(unittest.TestCase):
                 commentaire="Tentative",
             )
 
+    def test_ignored_anomaly_must_be_reopened_before_processing(self) -> None:
+        self.create_lot()
+        anomaly = self.service.synchronize_anomalies()[0]
+        self.service.update_anomaly_tracking(
+            anomaly.id_anomalie,
+            statut="IGNOREE",
+            commentaire="Écart accepté temporairement.",
+        )
+        with self.assertRaisesRegex(ValidationError, "Passage impossible"):
+            self.service.update_anomaly_tracking(
+                anomaly.id_anomalie,
+                statut="EN_COURS",
+                commentaire="Reprise directe",
+            )
+        self.service.update_anomaly_tracking(
+            anomaly.id_anomalie,
+            statut="NOUVELLE",
+            commentaire="Nouvelle vérification demandée.",
+        )
+        self.assertEqual(anomaly.statut, "NOUVELLE")
+
     def test_anomaly_is_resolved_automatically_when_cause_disappears(self) -> None:
         lot = self.create_lot()
         anomaly = self.service.synchronize_anomalies()[0]
