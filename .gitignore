@@ -1,13 +1,27 @@
+# Fichiers générés par Python
 __pycache__/
 *.py[cod]
+
+# Sauvegardes locales
 *.bak
 
+# Éditeurs
 .idea/
 .vscode/
+
+# Environnements Python
 .venv/
+venv/
+
+# Caches de tests
 .pytest_cache/
 
+# Données générées par l'application
 logs/
 data/
 exports/
 reports/quality_report_*.md
+
+# Fichiers système
+.DS_Store
+Thumbs.db
