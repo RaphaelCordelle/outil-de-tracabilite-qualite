@@ -1,6 +1,6 @@
 # Quality Traceability Tool
 
-Application de bureau réalisée en Python pour suivre des lots, leurs contrôles
+Logiciel fait en Python pour suivre des lots, leurs contrôles
 qualité et les incidents liés aux équipements.
 
 > Ce projet est un prototype personnel inspiré d’un environnement de production
@@ -10,7 +10,10 @@ qualité et les incidents liés aux équipements.
 
 ## À propos du projet
 
-L’idée de départ était simple : pouvoir retrouver l’état d’un lot, comprendre
+Mon idée de départ est venue après mon stage ouvrier : je voulais pouvoir 
+concevoir une simulation du système de logistique d'une entreprise pour pouvoir
+comprendre les contraintes, problèmes et optimisations de logistiques. Le but 
+était donc de pouvoir retrouver l’état d’un lot, comprendre
 comment cet état a été calculé et conserver les actions effectuées lorsqu’un
 écart est détecté. J’ai ensuite ajouté le suivi des équipements pour relier les
 problèmes qualité aux incidents et aux périodes d’utilisation.
@@ -24,9 +27,9 @@ L’application permet notamment de :
 - suivre les équipements, les incidents et les temps d’utilisation ;
 - produire un rapport Markdown ou un export des données.
 
-Trois vues sont proposées : Employé, Inspecteur qualité et Manager. Elles
-adaptent les pages et les actions affichées, mais ne constituent pas un système
-d’authentification.
+Comme dans une entreprise classiques j'ai réalisé trois vues différents :
+Employé, Inspecteur qualité et Manager. Elles adaptent les pages et les
+actions affichées afin de simuler les différents postes réels.
 
 ## Installation et lancement
 
