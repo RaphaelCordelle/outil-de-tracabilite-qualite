@@ -1,101 +1,98 @@
 # Quality Traceability Tool
 
-> Prototype personnel inspiré d’un environnement de production électronique.
-> Les données, les machines et les procédures présentées ici sont fictives.
+Application de bureau réalisée en Python pour suivre des lots, leurs contrôles
+qualité et les incidents liés aux équipements.
 
-J’ai développé cette application pour explorer un besoin concret de traçabilité :
-suivre un lot depuis sa création, enregistrer ses contrôles, repérer les écarts et
-garder une trace des décisions prises. Le projet comprend aussi un petit suivi
-d’équipements, avec incidents, temps d’utilisation et fiches de prévention.
+> Ce projet est un prototype personnel inspiré d’un environnement de production
+> électronique. Toutes les données, machines et procédures sont fictives.
 
-L’application fonctionne entièrement en local avec Python et Tkinter. Elle
-n’utilise aucune dépendance externe.
+![Tableau de bord de l'application](docs/images/gui-dashboard.png)
 
-![Tableau de bord](docs/images/gui-dashboard.png)
+## À propos du projet
 
-## Fonctions principales
+L’idée de départ était simple : pouvoir retrouver l’état d’un lot, comprendre
+comment cet état a été calculé et conserver les actions effectuées lorsqu’un
+écart est détecté. J’ai ensuite ajouté le suivi des équipements pour relier les
+problèmes qualité aux incidents et aux périodes d’utilisation.
 
-- créer, rechercher, modifier, archiver et consulter des lots ;
-- enregistrer et corriger des contrôles qualité ;
-- calculer le taux de défaut et le statut d’un lot ;
-- détecter les données incohérentes ;
-- suivre une anomalie jusqu’à sa résolution ;
-- gérer les équipements, incidents et utilisations ;
-- produire un rapport Markdown et un export avec contrôle d’intégrité ;
-- conserver un journal des opérations importantes.
+L’application permet notamment de :
 
-Trois vues sont disponibles depuis la barre supérieure :
+- créer, rechercher et archiver des lots ;
+- enregistrer puis valider des contrôles qualité ;
+- calculer les taux de défaut à partir de seuils configurables ;
+- détecter et traiter les anomalies de données ;
+- suivre les équipements, les incidents et les temps d’utilisation ;
+- produire un rapport Markdown ou un export des données.
 
-- **Employé** : saisie des lots et contrôles en attente, incidents et utilisations ;
-- **Inspecteur qualité** : validation des contrôles, anomalies et rapports ;
-- **Manager** : vue complète, configuration, exports et historique des actions.
+Trois vues sont proposées : Employé, Inspecteur qualité et Manager. Elles
+adaptent les pages et les actions affichées, mais ne constituent pas un système
+d’authentification.
 
-La vue se change directement en haut de la fenêtre. Ce choix adapte les pages
-affichées, mais ne remplace pas un véritable système de comptes utilisateurs.
+## Installation et lancement
 
-Les seuils qualité, les lignes de production et les types de défaut sont
-modifiables depuis l’application. Ils sont enregistrés dans
-`config/quality_rules.json`.
-
-## Lancer le projet
-
-Prérequis : Python 3.8 ou une version plus récente.
+Le projet utilise uniquement la bibliothèque standard de Python. Il faut Python
+3.8 ou une version plus récente.
 
 ```powershell
-cd C:\Dev\quality-traceability-tool
+git clone https://github.com/RaphaelCordelle/quality-traceability-tool.git
+cd quality-traceability-tool
 py -3 main.py
 ```
 
-Dans EduPython, il suffit d’ouvrir `main.py` puis de l’exécuter. La commande
-`python main.py` fonctionne aussi si Python est disponible dans le `PATH`.
+Sous Linux ou macOS, la dernière commande peut être remplacée par
+`python3 main.py`. Dans EduPython, il suffit d’ouvrir `main.py` puis de
+l’exécuter.
 
-Quelques commandes secondaires sont prévues :
+Au premier démarrage, le jeu fictif fourni dans `samples/` est copié dans
+`data/`. Les essais réalisés dans l’application ne modifient donc pas les
+exemples publiés sur GitHub.
+
+Quelques commandes sont aussi disponibles sans passer par l’interface :
 
 ```powershell
 py -3 main.py console  # interface texte
 py -3 main.py check    # contrôle de cohérence
-py -3 main.py report   # rapport Markdown
-py -3 main.py export   # copie des données et manifeste SHA-256
-py -3 main.py restore  # restauration des données de démonstration
+py -3 main.py report   # génération d'un rapport
+py -3 main.py export   # export des données
+py -3 main.py restore  # restauration du jeu fictif
 ```
 
-## Parcours de démonstration
+## Essai rapide
 
-Pour présenter le projet en quelques minutes :
+Pour découvrir les principaux parcours :
 
-1. ouvrir le tableau de bord et expliquer les indicateurs ;
-2. consulter un lot et les contrôles qui lui sont rattachés ;
-3. créer un lot, puis ajouter un contrôle ;
-4. double-cliquer sur une alerte puis prendre l'anomalie en charge ;
-5. signaler un incident sur un équipement ;
+1. ouvrir un lot depuis le tableau de bord ;
+2. consulter les contrôles qui déterminent son statut ;
+3. créer un lot et ajouter un contrôle en attente ;
+4. passer en vue Inspecteur qualité pour valider ce contrôle ;
+5. ouvrir une anomalie ou signaler un incident sur un équipement ;
 6. générer un rapport depuis la page **Rapports et exports**.
 
-La donnée volontairement incomplète du jeu de démonstration permet de montrer
-la détection d’un lot sans contrôle.
+Un lot du jeu fictif ne possède volontairement aucun contrôle. Il sert à montrer
+la détection et la résolution d’une anomalie.
 
 ## Organisation du code
 
 ```text
 main.py             démarrage et commandes
-models.py           objets manipulés par l’application
-quality_rules.py    calculs, validations et détection des anomalies
+models.py           structures de données
+quality_rules.py    calculs et validations
 storage.py          lecture et écriture des CSV et du JSON
-services.py         cas d’usage et règles de gestion
+services.py         actions métier
 reporting.py        génération du rapport Markdown
 console_ui.py       interface texte
 gui*.py             interface Tkinter
 tests/              tests automatisés
 ```
 
-Le chemin suivi par une saisie est volontairement simple :
+Une saisie suit toujours le même chemin :
 
 ```text
-interface → service → validation → stockage → journal d’audit
+interface → service → validation → stockage
 ```
 
-Cette séparation évite de placer les calculs métier dans les boutons de
-l’interface. Elle permet aussi de tester le comportement sans ouvrir de
-fenêtre.
+Les calculs et les écritures ne sont pas réalisés directement dans les boutons
+Tkinter. Cette séparation permet de tester les règles sans ouvrir l’interface.
 
 ## Tests
 
@@ -103,24 +100,20 @@ fenêtre.
 py -3 -m unittest discover -s tests -v
 ```
 
-La suite comprend 52 tests. Elle couvre les règles qualité, la persistance,
-les anomalies, les équipements, les rapports, la compatibilité Python et une
-recherche sur 1 000 lots. Elle vérifie aussi les vues, les transitions d'état,
-la création des dossiers de sortie et la mise en forme des rapports.
+Les 52 tests couvrent les principales règles qualité, les changements d’état,
+la persistance des CSV, les anomalies, les équipements et la génération des
+rapports. Chaque scénario utilise un dossier temporaire afin de ne pas toucher
+aux données de démonstration.
 
-## Choix et limites
+## Choix techniques et limites
 
-Le CSV a été choisi pour que les données restent faciles à lire et à montrer.
-Les écritures utilisent un fichier temporaire et conservent une sauvegarde
-`.bak` de la version précédente.
+Le stockage CSV est volontaire : les fichiers restent faciles à ouvrir et à
+présenter. Les écritures passent par un fichier temporaire et l’ancienne version
+est conservée en `.bak`.
 
-Au premier lancement, le jeu fourni dans `samples/` est copié dans `data/`.
-Les données de travail restent ainsi séparées des exemples publiés sur GitHub.
+Cette solution convient à une démonstration locale avec un seul utilisateur.
+Une version destinée à plusieurs postes demanderait une base de données, de
+véritables comptes, une gestion des droits et des sauvegardes centralisées.
 
-Ce stockage convient à une démonstration locale avec un seul utilisateur. Pour
-un déploiement réel à plusieurs postes, il faudrait au minimum une base de
-données, des comptes utilisateurs, une gestion des droits et des sauvegardes
-centralisées.
-
-Les détails sur les règles, le stockage et les tests se trouvent dans
-[les notes techniques](docs/technical-notes.md).
+Le détail des règles et du stockage se trouve dans les
+[notes techniques](docs/technical-notes.md).

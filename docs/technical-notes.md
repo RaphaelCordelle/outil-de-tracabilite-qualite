@@ -1,11 +1,11 @@
 # Notes techniques
 
-Ce document rassemble les informations utiles pour relire le code ou préparer
-une présentation. Il complète le README sans reprendre chaque écran.
+Ces notes servent de repère pour relire le code ou préparer une présentation.
+Elles complètent le README sans décrire chaque écran de l’application.
 
 ## Découpage
 
-Le projet suit une architecture en couches légère :
+J’ai séparé le projet en quelques modules, chacun avec un rôle précis :
 
 | Module | Rôle |
 |---|---|
@@ -34,7 +34,7 @@ service métier, pas seulement masquer des boutons.
 
 ## Changements d'état
 
-Chaque état modifiable possède une action visible dans au moins une vue :
+Les changements d’état sont encadrés pour éviter les raccourcis incohérents :
 
 | Élément | Action prévue |
 |---|---|
@@ -94,9 +94,9 @@ Avant de remplacer un CSV, le dépôt écrit d’abord un fichier temporaire. La
 version précédente est conservée avec l’extension `.bak`. Les exports ajoutent
 un manifeste SHA-256 pour permettre de vérifier qu’un fichier n’a pas changé.
 
-Le journal d'audit conserve les changements importants avec leur date, l'élément
-concerné et le profil d'affichage utilisé. Il sert à comprendre l'origine d'un
-statut ou d'une correction. Le prototype ne stocke pas d'identité nominative.
+L’historique conserve les changements importants avec leur date, l’élément
+concerné et la vue utilisée. Il aide à retrouver l’origine d’un statut ou d’une
+correction. Aucune identité nominative n’est enregistrée dans ce prototype.
 
 ## Tests
 
