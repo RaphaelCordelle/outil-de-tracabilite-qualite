@@ -226,6 +226,7 @@ Elle ne possède pas encore :
 - de sauvegarde distante ;
 - d’historique infalsifiable des modifications.
 
+Je ne compte pas pousuivre ces étapes, car cela reste un prototype qui a un usage personnel.
 Une version destinée à un usage réel en entreprise demanderait notamment une
 base de données, une API, des comptes utilisateurs et une gestion plus stricte
 des autorisations.
