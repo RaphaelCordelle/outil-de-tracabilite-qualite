@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from models import ControleQualite, Lot
 from quality_rules import ValidationError
@@ -134,6 +135,40 @@ class RobustnessTests(unittest.TestCase):
             reloaded.require_control(control.id_controle).commentaire,
             "Écart confirmé",
         )
+
+    def test_related_quality_files_are_restored_after_write_failure(self) -> None:
+        lot = self.service.create_lot(
+            Lot(f"LOT-{self.code}-001", self.iso, "PCB_A1", 100, "LINE-01")
+        )
+        control = ControleQualite(
+            f"QC-{self.code}-001",
+            lot.id_lot,
+            self.iso,
+            100,
+            1,
+            "DEFAUT_VISUEL",
+            0,
+            "",
+        )
+        repository = self.service.repository
+        original_write = repository._write_rows
+
+        def fail_on_lots(path, fields, rows, *, keep_backup=True):
+            if path == repository.lots_path:
+                raise StorageError("Panne simulée sur lots.csv")
+            return original_write(
+                path, fields, rows, keep_backup=keep_backup
+            )
+
+        with patch.object(repository, "_write_rows", side_effect=fail_on_lots):
+            with self.assertRaisesRegex(StorageError, "Panne simulée"):
+                self.service.add_control(control)
+
+        self.assertEqual(self.service.controls, [])
+        self.assertEqual(lot.statut, "SANS_CONTROLE")
+        reloaded = TraceabilityService(self.root)
+        self.assertEqual(reloaded.controls, [])
+        self.assertEqual(reloaded.require_lot(lot.id_lot).statut, "SANS_CONTROLE")
 
     def test_only_validated_controls_feed_operational_indicators(self) -> None:
         lot = self.service.create_lot(

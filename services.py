@@ -357,8 +357,9 @@ class TraceabilityService:
         self._issues_by_equipment[issue.id_equipement].append(issue)
         self._refresh_equipment_status(equipment.id_equipement)
         try:
-            self.repository.save_equipment_issues(self.equipment_issues)
-            self.repository.save_equipment(self.equipment)
+            self.repository.save_equipment_issue_state(
+                self.equipment, self.equipment_issues
+            )
         except Exception:
             self.equipment_issues.remove(issue)
             self._issues_by_id.pop(issue.id_incident, None)
@@ -403,8 +404,9 @@ class TraceabilityService:
                 equipment.id_equipement,
                 issue if statut in {"RESOLU", "CLOTURE"} else None,
             )
-            self.repository.save_equipment_issues(self.equipment_issues)
-            self.repository.save_equipment(self.equipment)
+            self.repository.save_equipment_issue_state(
+                self.equipment, self.equipment_issues
+            )
         except Exception:
             for field, value in original.to_dict().items():
                 setattr(issue, field, value)
@@ -448,8 +450,9 @@ class TraceabilityService:
         self._usage_by_equipment[equipment_id].append(usage)
         equipment.statut = "EN_UTILISATION"
         try:
-            self.repository.save_equipment_usage(self.equipment_usage)
-            self.repository.save_equipment(self.equipment)
+            self.repository.save_equipment_usage_state(
+                self.equipment, self.equipment_usage
+            )
         except Exception:
             self.equipment_usage.remove(usage)
             self._usage_by_id.pop(usage.id_utilisation, None)
@@ -484,8 +487,9 @@ class TraceabilityService:
         try:
             validate_equipment_usage(usage, equipment)
             self._refresh_equipment_status(equipment_id)
-            self.repository.save_equipment_usage(self.equipment_usage)
-            self.repository.save_equipment(self.equipment)
+            self.repository.save_equipment_usage_state(
+                self.equipment, self.equipment_usage
+            )
         except Exception:
             for field, value in original.to_dict().items():
                 setattr(usage, field, value)
@@ -679,8 +683,7 @@ class TraceabilityService:
         self._controls_by_lot[control.id_lot].append(control)
         self._refresh_status(lot.id_lot)
         try:
-            self.repository.save_controls(self.controls)
-            self.repository.save_lots(self.lots)
+            self.repository.save_quality_state(self.lots, self.controls)
         except Exception:
             self.controls.remove(control)
             self._controls_by_id.pop(control.id_controle, None)
@@ -727,8 +730,7 @@ class TraceabilityService:
             control.resultat = determine_result(control.taux_defaut, self.rules)
             validate_control(control, lot, self.rules)
             self._refresh_status(lot.id_lot)
-            self.repository.save_controls(self.controls)
-            self.repository.save_lots(self.lots)
+            self.repository.save_quality_state(self.lots, self.controls)
         except Exception:
             for field, value in original.to_dict().items():
                 setattr(control, field, value)
@@ -759,28 +761,44 @@ class TraceabilityService:
     def repair_inconsistencies(self) -> int:
         """Recalcule uniquement les champs dérivés et retourne le nombre de corrections."""
 
+        previous_controls = [
+            (control, control.taux_defaut, control.resultat)
+            for control in self.controls
+        ]
+        previous_statuses = [(lot, lot.statut) for lot in self.lots]
         corrections = 0
-        for control in self.controls:
-            expected_rate = calculate_defect_rate(
-                control.nombre_defauts, control.quantite_controlee
-            )
-            expected_result = determine_result(expected_rate, self.rules)
-            if control.taux_defaut != expected_rate:
-                control.taux_defaut = expected_rate
-                corrections += 1
-            if control.resultat != expected_result:
-                control.resultat = expected_result
-                corrections += 1
-        for lot in self.lots:
-            previous = lot.statut
-            self._refresh_status(lot.id_lot)
-            if lot.statut != previous:
-                corrections += 1
+        try:
+            for control in self.controls:
+                expected_rate = calculate_defect_rate(
+                    control.nombre_defauts, control.quantite_controlee
+                )
+                expected_result = determine_result(expected_rate, self.rules)
+                if control.taux_defaut != expected_rate:
+                    control.taux_defaut = expected_rate
+                    corrections += 1
+                if control.resultat != expected_result:
+                    control.resultat = expected_result
+                    corrections += 1
+            for lot in self.lots:
+                previous = lot.statut
+                self._refresh_status(lot.id_lot)
+                if lot.statut != previous:
+                    corrections += 1
+            if corrections:
+                self.repository.save_quality_state(self.lots, self.controls)
+        except Exception:
+            for control, rate, result in previous_controls:
+                control.taux_defaut = rate
+                control.resultat = result
+            for lot, status in previous_statuses:
+                lot.statut = status
+            raise
         if corrections:
-            self.repository.save_controls(self.controls)
-            self.repository.save_lots(self.lots)
             self._audit(
-                "INCOHERENCES_CORRIGEES", "SYSTEME", "DATA", f"{corrections} correction(s)"
+                "INCOHERENCES_CORRIGEES",
+                "SYSTEME",
+                "DATA",
+                f"{corrections} correction(s)",
             )
         self.synchronize_anomalies()
         return corrections
@@ -832,8 +850,7 @@ class TraceabilityService:
             if configuration_saved:
                 try:
                     self.repository.save_rules(previous_rules)
-                    self.repository.save_controls(self.controls)
-                    self.repository.save_lots(self.lots)
+                    self.repository.save_quality_state(self.lots, self.controls)
                 except StorageError:
                     LOGGER.exception(
                         "Restauration automatique de la configuration incomplète"

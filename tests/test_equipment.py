@@ -5,11 +5,13 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from models import Equipement, IncidentEquipement
 from quality_rules import ValidationError
 from reporting import generate_report
 from services import TraceabilityService
+from storage import StorageError
 from test_requirements import RULES
 
 
@@ -58,6 +60,34 @@ class EquipmentTests(unittest.TestCase):
         self.assertEqual(
             reloaded.require_equipment(created.id_equipement).nom,
             "Équipement de contrôle",
+        )
+
+    def test_issue_and_equipment_are_restored_after_write_failure(self) -> None:
+        equipment = self.service.create_equipment(self.equipment())
+        issue = self.issue(equipment.id_equipement)
+        repository = self.service.repository
+        original_write = repository._write_rows
+
+        def fail_on_equipment(path, fields, rows, *, keep_backup=True):
+            if path == repository.equipment_path:
+                raise StorageError("Panne simulée sur equipment.csv")
+            return original_write(
+                path, fields, rows, keep_backup=keep_backup
+            )
+
+        with patch.object(
+            repository, "_write_rows", side_effect=fail_on_equipment
+        ):
+            with self.assertRaisesRegex(StorageError, "Panne simulée"):
+                self.service.report_equipment_issue(issue)
+
+        self.assertEqual(self.service.equipment_issues, [])
+        self.assertEqual(equipment.statut, "DISPONIBLE")
+        reloaded = TraceabilityService(self.root)
+        self.assertEqual(reloaded.equipment_issues, [])
+        self.assertEqual(
+            reloaded.require_equipment(equipment.id_equipement).statut,
+            "DISPONIBLE",
         )
 
     def test_usage_records_start_end_user_and_duration(self) -> None:

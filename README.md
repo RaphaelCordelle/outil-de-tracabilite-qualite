@@ -158,7 +158,7 @@ Sous Linux ou macOS :
 python3 -m unittest discover -s tests -v
 ```
 
-Le projet contient actuellement **52 tests automatisés**.
+Le projet contient actuellement **54 tests automatisés**.
 
 Ils couvrent notamment :
 

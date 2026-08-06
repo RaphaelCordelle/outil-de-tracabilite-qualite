@@ -371,6 +371,96 @@ class CsvRepository:
             temporary.unlink(missing_ok=True)
             raise StorageError(f"Écriture impossible dans {path.name} : {exc}.") from exc
 
+    def _write_related_csv(
+        self, groups: list[tuple[Path, list[str], list[dict]]]
+    ) -> None:
+        """Restaure les fichiers déjà écrits si une écriture liée échoue."""
+
+        try:
+            snapshots = {
+                path: path.read_bytes() if path.exists() else None
+                for path, _fields, _rows in groups
+            }
+        except OSError as exc:
+            raise StorageError(
+                f"Préparation de l'enregistrement impossible : {exc}."
+            ) from exc
+
+        try:
+            for path, fields, rows in groups:
+                self._write_rows(path, fields, rows)
+        except Exception:
+            rollback_errors = []
+            for path, content in snapshots.items():
+                try:
+                    if content is None:
+                        path.unlink(missing_ok=True)
+                        continue
+                    temporary = path.with_suffix(path.suffix + ".rollback.tmp")
+                    temporary.write_bytes(content)
+                    replace_file_with_retry(temporary, path)
+                except OSError as exc:
+                    rollback_errors.append(exc)
+            if rollback_errors:
+                raise StorageError(
+                    "L'enregistrement et la restauration des fichiers ont échoué."
+                ) from rollback_errors[0]
+            raise
+
+    def save_quality_state(
+        self, lots: list[Lot], controls: list[ControleQualite]
+    ) -> None:
+        self._write_related_csv(
+            [
+                (
+                    self.controls_path,
+                    CONTROL_FIELDS,
+                    [control.to_dict() for control in controls],
+                ),
+                (self.lots_path, LOT_FIELDS, [lot.to_dict() for lot in lots]),
+            ]
+        )
+
+    def save_equipment_issue_state(
+        self,
+        equipment: list[Equipement],
+        issues: list[IncidentEquipement],
+    ) -> None:
+        self._write_related_csv(
+            [
+                (
+                    self.equipment_issues_path,
+                    ISSUE_FIELDS,
+                    [issue.to_dict() for issue in issues],
+                ),
+                (
+                    self.equipment_path,
+                    EQUIPMENT_FIELDS,
+                    [item.to_dict() for item in equipment],
+                ),
+            ]
+        )
+
+    def save_equipment_usage_state(
+        self,
+        equipment: list[Equipement],
+        usage: list[UtilisationEquipement],
+    ) -> None:
+        self._write_related_csv(
+            [
+                (
+                    self.equipment_usage_path,
+                    USAGE_FIELDS,
+                    [item.to_dict() for item in usage],
+                ),
+                (
+                    self.equipment_path,
+                    EQUIPMENT_FIELDS,
+                    [item.to_dict() for item in equipment],
+                ),
+            ]
+        )
+
     def save_lots(self, lots: list[Lot]) -> None:
         self._write_rows(self.lots_path, LOT_FIELDS, [lot.to_dict() for lot in lots])
 
