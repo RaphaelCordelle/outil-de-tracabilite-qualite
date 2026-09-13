@@ -1,7 +1,6 @@
 # Notes techniques
 
-Ces notes servent de repère pour relire le code ou préparer une présentation.
-Elles complètent le README sans décrire chaque écran de l’application.
+Ces notes décrivent les règles métier, les changements d’état et le stockage.
 
 ## Découpage
 
@@ -28,15 +27,14 @@ L'employé se concentre sur la saisie et les équipements. L'inspecteur qualité
 valide les contrôles et traite les anomalies. Le manager voit aussi les réglages,
 les exports et l'historique.
 
-Il s'agit uniquement d'une adaptation de l'interface. Une version déployée en
-entreprise devrait utiliser de vrais comptes et vérifier les droits dans le
-service métier, pas seulement masquer des boutons.
+Il s'agit uniquement d'une adaptation de l'interface. Aucun compte utilisateur
+ni contrôle d'autorisation n'est appliqué par le service métier.
 
 ## Changements d'état
 
 Les changements d’état sont encadrés pour éviter les raccourcis incohérents :
 
-| Élément | Action prévue |
+| Élément | Règle appliquée |
 |---|---|
 | lot | statut calculé depuis les contrôles, avec archivage et réactivation |
 | contrôle | passage entre en attente, validé et annulé par le profil qualité |
