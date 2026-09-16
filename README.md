@@ -1,4 +1,4 @@
-# Outil de suivi qualité et de traçabilité
+# Outil de traçabilité qualité
 
 Application locale en Python pour suivre des lots de production, leurs contrôles qualité et les incidents liés aux équipements. Le projet est inspiré de situations observées pendant un stage ouvrier dans l’industrie électronique ; toutes les données et procédures publiées sont fictives.
 
@@ -28,8 +28,8 @@ L’interface Tkinter propose trois profils d’affichage : employé, inspecteur
 Le projet utilise uniquement la bibliothèque standard de Python 3.8 ou version ultérieure.
 
 ```powershell
-git clone https://github.com/RaphaelCordelle/quality-traceability-tool.git
-cd quality-traceability-tool
+git clone https://github.com/RaphaelCordelle/outil-de-tracabilite-qualite.git
+cd outil-de-tracabilite-qualite
 py -3 main.py
 ```
 
